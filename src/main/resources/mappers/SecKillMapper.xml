@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jinshuai.seckill.dao">
+	<select id="getProductById" resultType="Product">
+		SELECT *
+		FROM product
+		WHERE id = #{id}
+	</select>
+	<update id="updateStockByOptimisticLock" >
+		UPDATE product
+		SET stock = #{stock}
+		WHERE id = #{id} AND version = #{version}
+	</update>
+	<insert id="createOrder" useGeneratedKeys="true" keyProperty="id" >
+		INSERT INTO order values(#{user.id}, #{product.id},#{createTime})
+	</insert>
+
+</mapper>
