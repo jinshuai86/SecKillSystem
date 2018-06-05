@@ -20,7 +20,7 @@ import java.sql.Timestamp;
 public class SeckillApplicationTests {
 
 	@Autowired
-	ISecKillDao secKillDao;
+	private ISecKillDao secKillDao;
 
 	@Test
 	public void contextLoads() {
@@ -40,14 +40,11 @@ public class SeckillApplicationTests {
 			stringBuilder.append(init+"\n");
 		}
 		File file = new File("F:/insertUser.sql");
-		try {
-            FileWriter fileWriter = new FileWriter(file);
-
+		try (FileWriter fileWriter = new FileWriter(file)){
             fileWriter.write(stringBuilder.toString());
         } catch (IOException e1) {
             e1.printStackTrace();
         }
-
 	}
 
 	@Test
@@ -59,15 +56,12 @@ public class SeckillApplicationTests {
 			stringBuilder.append(userId + productId + "\n");
 		}
 		File file = new File("F:/robot.txt");
-		try {
-			FileWriter fileWriter = new FileWriter(file);
-
+		try (FileWriter fileWriter = new FileWriter(file)){
 			fileWriter.write(stringBuilder.toString());
 			fileWriter.flush();
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-
 	}
 
 }
