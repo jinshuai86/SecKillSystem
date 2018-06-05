@@ -9,5 +9,5 @@
 1. 通过Redis实现缓存，每次查询库存都从Redis进行查找(注意缓存雪崩和缓存穿透)
 2. 使用RocketMQ作为消息队列
 3. SpringBoot(SSM)作为整个项目的框架，相比SpringDataJPA，MyBatis更灵活一些
-4. MySQL存放数据，分别采用乐观锁、悲观锁进行压力测试对比。
+4. MySQL存放数据，目前分别采用乐观锁、悲观锁进行并发控制。
 5. Jmeter进行压力测试
