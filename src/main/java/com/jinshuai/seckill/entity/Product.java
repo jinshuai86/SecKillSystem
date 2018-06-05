@@ -12,7 +12,7 @@ public class Product {
     /**
      * 产品编号
      */
-    private Integer id;
+    private int id;
 
     /**
      * 产品名
@@ -72,30 +72,6 @@ public class Product {
 
     public void setVersion(Integer version) {
         this.version = version;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Product product = (Product) o;
-
-        if (id != null ? !id.equals(product.id) : product.id != null) return false;
-        if (productName != null ? !productName.equals(product.productName) : product.productName != null) return false;
-        if (price != null ? !price.equals(product.price) : product.price != null) return false;
-        if (stock != null ? !stock.equals(product.stock) : product.stock != null) return false;
-        return version != null ? version.equals(product.version) : product.version == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = id != null ? id.hashCode() : 0;
-        result = 31 * result + (productName != null ? productName.hashCode() : 0);
-        result = 31 * result + (price != null ? price.hashCode() : 0);
-        result = 31 * result + (stock != null ? stock.hashCode() : 0);
-        result = 31 * result + (version != null ? version.hashCode() : 0);
-        return result;
     }
 
     @Override

@@ -1,6 +1,6 @@
 package com.jinshuai.seckill.entity;
 
-import org.joda.time.DateTime;
+import java.sql.Timestamp;
 
 /**
  * @author: JS
@@ -12,7 +12,7 @@ public class Order {
     /**
      * 订单ID
      * */
-    private Integer id;
+    private int id;
 
     /**
      * 订单所属用户
@@ -27,13 +27,28 @@ public class Order {
     /**
      * 订单创建时间
      * */
-    private DateTime createTime;
+    private Timestamp createTime;
 
-    public Integer getId() {
+    public Order(){}
+
+    public Order(int id, User user, Product product, Timestamp createTime) {
+        this.id = id;
+        this.user = user;
+        this.product = product;
+        this.createTime = createTime;
+    }
+
+    public Order(User user, Product product, Timestamp createTime) {
+        this.user = user;
+        this.product = product;
+        this.createTime = createTime;
+    }
+
+    public int getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -53,43 +68,12 @@ public class Order {
         this.product = product;
     }
 
-    public DateTime getCreateTime() {
+    public Timestamp getCreateTime() {
         return createTime;
     }
 
-    public void setCreateTime(DateTime createTime) {
+    public void setCreateTime(Timestamp createTime) {
         this.createTime = createTime;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Order order = (Order) o;
-
-        if (id != null ? !id.equals(order.id) : order.id != null) return false;
-        if (user != null ? !user.equals(order.user) : order.user != null) return false;
-        if (product != null ? !product.equals(order.product) : order.product != null) return false;
-        return createTime != null ? createTime.equals(order.createTime) : order.createTime == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = id != null ? id.hashCode() : 0;
-        result = 31 * result + (user != null ? user.hashCode() : 0);
-        result = 31 * result + (product != null ? product.hashCode() : 0);
-        result = 31 * result + (createTime != null ? createTime.hashCode() : 0);
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Order{" +
-                "id=" + id +
-                ", user=" + user +
-                ", product=" + product +
-                ", createTime=" + createTime +
-                '}';
-    }
 }
