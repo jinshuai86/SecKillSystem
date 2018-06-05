@@ -2,7 +2,9 @@ package com.jinshuai.seckill.service;
 
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
+import com.jinshuai.seckill.enums.StatusEnum;
 
+import java.util.Map;
 public interface ISecKillService {
 
     /**
@@ -13,17 +15,17 @@ public interface ISecKillService {
     /**
      * 乐观锁更新库存
      * */
-    int updateStockByOptimisticLock(Product product);
+    StatusEnum updateStockByOptimisticLock(Map<String,Integer> parameter);
 
     /**
      * 悲观锁更新库存
      * */
-    int updateStockByPessimisticLock(Product product);
+    StatusEnum updateStockByPessimisticLock(Map<String,Integer> parameter);
 
     /**
      * 创建订单
      * */
-    int createOrder(Order order);
+    StatusEnum createOrder(Order order);
 
 
 }

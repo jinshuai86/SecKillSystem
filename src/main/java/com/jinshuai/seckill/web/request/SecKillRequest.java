@@ -1,4 +1,4 @@
-package com.jinshuai.seckill.web;
+package com.jinshuai.seckill.web.request;
 
 /**
  * @author: JS
@@ -8,23 +8,31 @@ package com.jinshuai.seckill.web;
  */
 public class SecKillRequest {
 
-    private int userId;
+    private Integer userId;
 
-    private int productId;
+    private Integer productId;
 
-    public int getUserId() {
+    public Integer getUserId() {
         return userId;
     }
 
-    public void setUserId(int userId) {
+    public void setUserId(Integer userId) {
         this.userId = userId;
     }
 
-    public int getProductId() {
+    public Integer getProductId() {
         return productId;
     }
 
-    public void setProductId(int productId) {
+    public void setProductId(Integer productId) {
         this.productId = productId;
+    }
+
+    @Override
+    public String toString() {
+        return "SecKillRequest{" +
+                "userId=" + userId +
+                ", productId=" + productId +
+                '}';
     }
 }

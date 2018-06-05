@@ -2,6 +2,7 @@ package com.jinshuai.seckill.dao;
 
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
+import com.jinshuai.seckill.entity.User;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -13,9 +14,15 @@ import org.springframework.stereotype.Repository;
 public interface ISecKillDao {
 
     /**
-     * 获取商品详细信息
+     * 获取商品
      * */
-    Product getProductById(Integer productId);
+    Product getProductById(int productId);
+
+    /**
+     * 获取商品并加锁
+     * */
+
+    Product getAndLockProductById(int productId);
 
     /**
      * 乐观锁更新库存
@@ -31,4 +38,10 @@ public interface ISecKillDao {
      * 创建订单
      * */
     int createOrder(Order order);
+
+    /**
+     * 获取用户
+     * */
+    User getUserById(int userId);
+
 }
