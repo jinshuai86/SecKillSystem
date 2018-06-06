@@ -11,3 +11,5 @@
 3. SpringBoot(SSM)作为整个项目的框架，相比SpringDataJPA，MyBatis更灵活一些
 4. MySQL存放数据，目前分别采用乐观锁、悲观锁进行并发控制。
 5. Jmeter进行压力测试
+## 代码
+1.配置Cache
