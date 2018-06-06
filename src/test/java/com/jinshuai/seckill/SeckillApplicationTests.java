@@ -10,10 +10,14 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -62,6 +66,25 @@ public class SeckillApplicationTests {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
+	}
+
+	@Autowired
+	private JedisPool jedisPool;
+
+	@Test
+	public void testJedis() {
+		Jedis jedis = jedisPool.getResource();
+		jedis.set("name","靳帅");
+		System.out.println(jedis.get("name"));
+
+	}
+
+	@Test
+	public void testDao() {
+		List<Product> productList = secKillDao.getAllProducts();
+		productList.forEach(v -> {
+			System.out.println(v);
+		});
 	}
 
 }

@@ -13,14 +13,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import redis.clients.jedis.JedisPool;
 
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Map;
 
 /**
  * @author: JS
  * @date: 2018/6/3
- * @description:
+ * @description: TODO:防止重复购买
  */
 @Service
 public class SecKillServiceImpl implements ISecKillService {
@@ -30,9 +32,17 @@ public class SecKillServiceImpl implements ISecKillService {
     @Autowired
     private ISecKillDao secKillDao;
 
+    @Autowired
+    private JedisPool jedisPool;
+
     @Override
     public Product getProductById(Integer productId) {
         return secKillDao.getProductById(productId);
+    }
+
+    @Override
+    public List<Product> getAllProduct() {
+        return secKillDao.getAllProducts();
     }
 
     /**

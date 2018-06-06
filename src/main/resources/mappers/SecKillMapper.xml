@@ -10,6 +10,12 @@
 		WHERE id = #{id}
 	</select>
 
+	<!-- 加载到缓存 -->
+	<select id="getAllProducts" resultType="Product">
+		SELECT id,stock
+		FROM product
+	</select>
+
 	<!-- 乐观锁 -->
 	<update id="updateStockByOptimisticLock" >
 		UPDATE product

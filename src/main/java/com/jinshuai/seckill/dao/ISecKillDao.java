@@ -1,5 +1,7 @@
 package com.jinshuai.seckill.dao;
 
+import java.util.List;
+
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
 import com.jinshuai.seckill.entity.User;
@@ -17,6 +19,11 @@ public interface ISecKillDao {
      * 获取商品
      * */
     Product getProductById(int productId);
+
+    /***
+     * 获取所有商品
+     */
+    List<Product> getAllProducts();
 
     /**
      * 获取商品并加锁

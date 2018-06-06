@@ -6,4 +6,5 @@ package com.jinshuai.seckill.utils;
  * @description:
  */
 public class SecKillUtils {
+
 }
