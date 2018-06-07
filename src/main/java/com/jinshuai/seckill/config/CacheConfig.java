@@ -53,7 +53,7 @@ public class CacheConfig {
 
     @Bean(name = "jedisPool")
     public JedisPool getJedispool(@Qualifier("jedisPoolConfig") JedisPoolConfig jedisPoolConfig) {
-        JedisPool jedisPool = new JedisPool(jedisPoolConfig,host,port,timeout,password);
+        JedisPool jedisPool = new JedisPool(jedisPoolConfig,host,port,timeout);
         return jedisPool;
     }
 

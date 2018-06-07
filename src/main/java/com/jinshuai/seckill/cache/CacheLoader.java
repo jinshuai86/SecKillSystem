@@ -41,11 +41,12 @@ public class CacheLoader {
             jedis.flushDB();
             Pipeline pipeline = jedis.pipelined();
             List<Product> productList = secKillDao.getAllProducts();
-            productList.forEach(product ->
-                pipeline.set("product:" + product.getId() + ":stock",String.valueOf(product.getStock()))
-            );
+            productList.forEach(product -> {
+                pipeline.set("product:" + product.getId() + ":stock", String.valueOf(product.getStock()));
+                pipeline.set("product:" + product.getId() + ":version", String.valueOf(product.getVersion()));
+            });
             pipeline.sync();
-            LOGGER.info("商品主键、库存信息已加载到缓存中！！！");
+            LOGGER.info("商品库存、版本号已加载到缓存中！！！");
         } catch (Exception e) {
             LOGGER.error("加载商品到缓存出错,正在停止JVM......",e);
             System.exit(-1);
