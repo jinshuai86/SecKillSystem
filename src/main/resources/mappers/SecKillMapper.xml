@@ -12,7 +12,7 @@
 
 	<!-- 加载到缓存 -->
 	<select id="getAllProducts" resultType="Product">
-		SELECT id,stock
+		SELECT id,stock,version
 		FROM product
 	</select>
 

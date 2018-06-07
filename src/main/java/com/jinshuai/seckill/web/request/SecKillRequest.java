@@ -4,7 +4,7 @@ package com.jinshuai.seckill.web.request;
  * @author: JS
  * @date: 2018/6/4
  * @description:
- *
+ * 组装请求JSON为SecKillRequest对象
  */
 public class SecKillRequest {
 
