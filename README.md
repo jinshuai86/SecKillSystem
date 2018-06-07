@@ -1,4 +1,4 @@
-# SpeedKillSystem
+# SecKillSystem
 高并发系统设计思路与实现
 ## 思路
 1. 一般都是读多(读库存)写少的操作，尽量将请求拦截在系统上游  

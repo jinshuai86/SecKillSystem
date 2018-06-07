@@ -55,21 +55,22 @@ public class SecKillServiceImpl implements ISecKillService {
         User user = secKillDao.getUserById(userId);
         // 检查 -> 更新为非原子操作：可以在更新缓存库存以后检查缓存库存，如果是负数则更新失败，并将缓存库存恢复为0
         try (Jedis jedis = jedisPool.getResource()) {
-            String cacheProductVersionKey = "product:" + productId + ":version";
-            int version = Integer.valueOf(jedis.get(cacheProductVersionKey));
             Product product = new Product();
             product.setId(productId);
-            product.setVersion(version);
             // 检查缓存库存
             status = checkStock(product,status,jedis);
-            if (!status.equals(StatusEnum.LOW_STOCKS)) {
+            if (!status.equals(StatusEnum.LOW_STOCKS) && !status.equals(StatusEnum.INCOMPLETE_ARGUMENTS)) {
+                // 放到if后预防缓存穿透
+                String cacheProductVersionKey = "product:" + productId + ":version";
+                int version = Integer.valueOf(jedis.get(cacheProductVersionKey));
+                product.setVersion(version);
                 // 更新库存
                 updateStock(product,jedis);
                 // 创建订单
                 createOrder(product,user);
             }
         } catch (Exception e) {
-//            LOGGER.error("系统异常",e);
+            LOGGER.error("系统异常",e);
             status = StatusEnum.SYSTEM_EXCEPTION;
         }
         return status;
