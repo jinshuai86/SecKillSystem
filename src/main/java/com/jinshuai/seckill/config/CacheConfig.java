@@ -23,6 +23,9 @@ public class CacheConfig {
     @Value("${spring.redis.host}")
     private String host;
 
+    @Value("${spring.redis.password}")
+    private String password;
+
     @Value("${spring.redis.timeout}")
     private int timeout;
 
@@ -44,13 +47,13 @@ public class CacheConfig {
         jedisPoolConfig.setMaxIdle(maxIdle);
         jedisPoolConfig.setMinIdle(minIdle);
         jedisPoolConfig.setMaxTotal(maxActive);
-        jedisPoolConfig.setMaxWaitMillis(timeout);
+        jedisPoolConfig.setMaxWaitMillis(maxWait);
         return jedisPoolConfig;
     }
 
     @Bean(name = "jedisPool")
     public JedisPool getJedispool(@Qualifier("jedisPoolConfig") JedisPoolConfig jedisPoolConfig) {
-        JedisPool jedisPool = new JedisPool(jedisPoolConfig,host,port);
+        JedisPool jedisPool = new JedisPool(jedisPoolConfig,host,port,timeout,password);
         return jedisPool;
     }
 
