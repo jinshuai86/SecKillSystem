@@ -26,3 +26,6 @@
 
 ### Log ###
 *.log
+
+### Security ###
+/src/main/resources/application.properties
