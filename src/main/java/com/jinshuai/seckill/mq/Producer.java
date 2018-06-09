@@ -1,4 +1,13 @@
 package com.jinshuai.seckill.mq;
 
-public interface Producer {
+/**
+ * 生产者接口
+ * */
+public interface Producer<T> {
+
+    /**
+     * 创建队列元素
+     * */
+    int product(T t);
+
 }

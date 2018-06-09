@@ -76,4 +76,13 @@ public class Order {
         this.createTime = createTime;
     }
 
+    @Override
+    public String toString() {
+        return "Order{" +
+                "id=" + id +
+                ", user=" + user +
+                ", product=" + product +
+                ", createTime=" + createTime +
+                '}';
+    }
 }

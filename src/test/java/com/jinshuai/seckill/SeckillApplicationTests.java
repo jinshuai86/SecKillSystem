@@ -1,5 +1,6 @@
 package com.jinshuai.seckill;
 
+import com.alibaba.fastjson.JSON;
 import com.jinshuai.seckill.dao.ISecKillDao;
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
@@ -85,6 +86,21 @@ public class SeckillApplicationTests {
 		productList.forEach(v -> {
 			System.out.println(v);
 		});
+	}
+
+	@Test
+	public void testGson() {
+		User user = new User();
+		user.setId(1);
+		Product product = new Product();
+		product.setId(1);
+		Order order = new Order();
+		order.setId(1234);
+		order.setProduct(product);
+		order.setUser(user);
+		String jsonStr = JSON.toJSONString(order);
+		System.out.println(jsonStr);
+		System.out.println(JSON.parseObject(jsonStr,Order.class));
 	}
 
 }

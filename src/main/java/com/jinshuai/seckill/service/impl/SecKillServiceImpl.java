@@ -5,6 +5,8 @@ import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
 import com.jinshuai.seckill.entity.User;
 import com.jinshuai.seckill.enums.StatusEnum;
+import com.jinshuai.seckill.mq.Producer;
+import com.jinshuai.seckill.mq.impl.OrderProducer;
 import com.jinshuai.seckill.service.ISecKillService;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -33,6 +35,9 @@ public class SecKillServiceImpl implements ISecKillService {
 
     @Autowired
     private JedisPool jedisPool;
+
+    @Autowired
+    private Producer orderProducer;
 
     @Override
     public Product getProductById(Integer productId) {
@@ -140,7 +145,7 @@ public class SecKillServiceImpl implements ISecKillService {
             if (count != 1) {
                 // 更新数据库商品库存失败，回滚之前修改的缓存库存
                 jedis.incr(cacheProductStockKey);
-                throw new RuntimeException("productId:[" +productId+ "]，更新库存失败,当前库存：" + product.getStock());
+                throw new RuntimeException("productId:[" +productId+ "]，并发更新库存失败");
             }
             // 更新缓存版本号
             jedis.incr(cacheProductVersionKey);
@@ -154,7 +159,10 @@ public class SecKillServiceImpl implements ISecKillService {
         DateTime dateTime = new DateTime();
         Timestamp ts = new Timestamp(dateTime.getMillis());
         Order order = new Order(user,product,ts);
-        int count = secKillDao.createOrder(order);
+        // 放到消息队列
+        int count = orderProducer.product(order);
+        // 直接放到数据库
+//        int count = secKillDao.createOrder(order);
         if (count != 1) {
             // 此时库存已经扣除
             LOGGER.error("userId[{}] productId[{}] 创建订单失败"); // 查看指定类型的日志，避免订单异常。
