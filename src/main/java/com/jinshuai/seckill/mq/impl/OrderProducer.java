@@ -25,7 +25,7 @@ public class OrderProducer implements Producer<Order> {
         int count = 1;
         try {
             rocketMQTemplate.convertAndSend("orderTopic", order);
-            log.info("订单入队成功[{}]",order);
+//            log.info("订单入队成功[{}]",order);
         } catch (Exception e) {
             log.error("订单入队异常",e);
             count = 0;

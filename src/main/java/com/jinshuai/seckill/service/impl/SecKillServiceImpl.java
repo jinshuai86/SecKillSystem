@@ -37,7 +37,7 @@ public class SecKillServiceImpl implements ISecKillService {
     private JedisPool jedisPool;
 
     @Autowired
-    private Producer orderProducer;
+    private Producer<Order> orderProducer;
 
     @Override
     public Product getProductById(Integer productId) {
@@ -75,7 +75,7 @@ public class SecKillServiceImpl implements ISecKillService {
                 createOrder(product,user);
             }
         } catch (Exception e) {
-            LOGGER.error("系统异常",e);
+//            LOGGER.error("系统异常",e);
             status = StatusEnum.SYSTEM_EXCEPTION;
         }
         return status;
@@ -153,7 +153,7 @@ public class SecKillServiceImpl implements ISecKillService {
     }
 
     /**
-     * 创建订单
+     * 创建订单到消息队列
      * */
     private void createOrder(Product product, User user) {
         DateTime dateTime = new DateTime();
@@ -161,8 +161,8 @@ public class SecKillServiceImpl implements ISecKillService {
         Order order = new Order(user,product,ts);
         // 放到消息队列
         int count = orderProducer.product(order);
-        // 直接放到数据库
-//        int count = secKillDao.createOrder(order);
+        // 放到数据库
+        // int count = secKillDao.createOrder(order);
         if (count != 1) {
             // 此时库存已经扣除
             LOGGER.error("userId[{}] productId[{}] 创建订单失败"); // 查看指定类型的日志，避免订单异常。
@@ -173,7 +173,7 @@ public class SecKillServiceImpl implements ISecKillService {
     /**
      * 乐观锁：未加缓存
      * */
-//    @Override
+//  @Override
     public StatusEnum _updateStockByOptimisticLock(Map<String,Integer> parameter) {
         StatusEnum status = StatusEnum.SUCCESS;
         int productId = parameter.get("productId");

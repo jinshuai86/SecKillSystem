@@ -38,11 +38,12 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
         try {
             int count = secKillDao.createOrder(order);
             if (count != 1) {
-                log.error("创建订单[{}]失败",order);
+                log.error("订单[{}]出队进入数据库失败",order);
+            } else {
+                log.info("订单[{}]出队成功，当前创建订单总量[{}]",order.getId(), orderNums.addAndGet(1));
             }
-            log.info("创建订单[{}]成功，当前订单总量[{}]",order.getId(), orderNums.addAndGet(1));
         } catch (Exception e) {
-            log.error("订单出队异常",e);
+            log.error("订单[{}]出队异常",order.getId(),e);
         }
     }
 }
