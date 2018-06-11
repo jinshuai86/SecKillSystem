@@ -5,18 +5,22 @@ import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
 import com.jinshuai.seckill.entity.User;
 import com.jinshuai.seckill.enums.StatusEnum;
+import com.jinshuai.seckill.exception.SecKillException;
 import com.jinshuai.seckill.mq.Producer;
-import com.jinshuai.seckill.mq.impl.OrderProducer;
 import com.jinshuai.seckill.service.ISecKillService;
+import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +31,9 @@ import java.util.Map;
  * @description:
  */
 @Service
+@Slf4j
 public class SecKillServiceImpl implements ISecKillService {
 
-    private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
     @Autowired
     private ISecKillDao secKillDao;
 
@@ -50,7 +54,7 @@ public class SecKillServiceImpl implements ISecKillService {
     }
 
     /**
-     * 乐观锁：加缓存
+     * 乐观锁：加缓存、加消息队列
      * */
     @Override
     public StatusEnum updateStockByOptimisticLock(Map<String,Integer> parameter) {
@@ -59,77 +63,90 @@ public class SecKillServiceImpl implements ISecKillService {
         int userId = parameter.get("userId");
         User user = secKillDao.getUserById(userId);
         // 检查 -> 更新为非原子操作：可以在更新缓存库存以后检查缓存库存，如果是负数则更新失败，并将缓存库存恢复为0
-        try (Jedis jedis = jedisPool.getResource()) {
+        try (Jedis jedis = jedisPool.getResource()) { // 为了关闭jedis
             Product product = new Product();
             product.setId(productId);
-            // 检查缓存库存
-            status = checkStock(product,status,jedis);
-            if (!status.equals(StatusEnum.LOW_STOCKS) && !status.equals(StatusEnum.INCOMPLETE_ARGUMENTS)) {
-                // 放到if后预防缓存穿透
-                String cacheProductVersionKey = "product:" + productId + ":version";
-                int version = Integer.valueOf(jedis.get(cacheProductVersionKey));
-                product.setVersion(version);
-                // 更新库存
-                updateStock(product,jedis);
-                // 创建订单
-                createOrder(product,user);
-            }
-        } catch (Exception e) {
-//            LOGGER.error("系统异常",e);
-            status = StatusEnum.SYSTEM_EXCEPTION;
+            // 查看是否重复购买
+            checkRepeat(user,product,jedis);
+            // 查看缓存库存
+            checkStock(product, jedis);
+            // 构造版本号
+            String cacheProductVersionKey = "product:" + productId + ":version";
+            String versionStr = jedis.get(cacheProductVersionKey);
+            int version = Integer.valueOf(versionStr);
+            product.setVersion(version);
+            // 更新库存
+            updateStock(product, jedis);
+            // 创建订单
+            createOrder(product, user, jedis);
+        } catch (SecKillException e) {
+            throw e;
         }
         return status;
+    }
+
+    /**
+     * 查看是否重复购买
+     * */
+    private void checkRepeat(User user, Product product, Jedis jedis) {
+        // 将用户Id和商品Id作为集合中唯一元素
+        String itemKey = user.getId() + "" + product.getId();
+        if (jedis.sismember("item",itemKey)) {
+            throw new SecKillException(StatusEnum.REPEAT);
+        }
     }
 
     /**
      * 1. 处理缓存穿透 2. 检查库存
      * */
-    private final StatusEnum checkStock(Product product, StatusEnum status,Jedis jedis) {
+    private void checkStock(Product product, Jedis jedis) {
         int productId = product.getId();
         String cacheProductKey = "product:" + productId + ":stock";
         String stockStr = jedis.get(cacheProductKey);
         // 缓存未命中
         if (stockStr == null) {
+            log.warn("商品编号: [{}] 未在缓存命中",productId);
             // 在存储层去查找
             product = secKillDao.getProductById(productId);
             // 存储层不存在此商品
             if (product == null) {
+                log.warn("商品编号: [{}] 未在存储层命中,已添加冗余数据到缓存",productId);
                 // 通过缓存没意义的数据防止缓存穿透
                 jedis.set(cacheProductKey,"penetration");
+                throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
             } else {
                 // 存储层存在此商品，添加到缓存
                 jedis.set(cacheProductKey,String.valueOf(product.getStock()));
                 // 检查此商品在缓存里的库存
-                status = checkCacheStock(productId,status,jedis);
+                checkCacheStock(productId, jedis);
             }
         } else {
             // 命中无意义数据
             if ("penetration".equals(stockStr)) {
-                LOGGER.error("请求数据不合法 productId : [{}]",productId);
-                status = StatusEnum.INCOMPLETE_ARGUMENTS;
+                throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
             } else {
-                // 检查缓存库存
-                status = checkCacheStock(productId,status,jedis);
+                // 检查此商品在缓存里的库存
+                checkCacheStock(productId, jedis);
             }
         }
-        return status;
     }
 
-    private final StatusEnum checkCacheStock(int productId, StatusEnum status, Jedis jedis) {
+    /**
+     * 查看缓存中的此商品的数量
+     * */
+    private void checkCacheStock(int productId, Jedis jedis) {
         String cacheProductKey = "product:" + productId + ":stock";
         String stockStr = jedis.get(cacheProductKey);
         int cacheStock = Integer.valueOf(stockStr);
         if (cacheStock == 0) {
-            status = StatusEnum.LOW_STOCKS;
-            LOGGER.warn("库存不足 productId： [{}]", productId);
+            throw new SecKillException(StatusEnum.LOW_STOCKS);
         }
-        return status;
     }
 
     /**
      * 更新缓存库存和数据库库存
      * */
-    private final void updateStock(Product product, Jedis jedis) {
+    private void updateStock(Product product, Jedis jedis) {
         int productId = product.getId();
         String cacheProductVersionKey = "product:" + productId + ":version";
         String cacheProductStockKey = "product:" + productId + ":stock";
@@ -138,14 +155,14 @@ public class SecKillServiceImpl implements ISecKillService {
         // 防止并发修改导致超卖
         if (currentCacheStock < 0) {
             jedis.set(cacheProductStockKey,String.valueOf(0));
-            throw new RuntimeException("productId:[" +productId+ "]库存不足，更新缓存失败");
+            throw new SecKillException(StatusEnum.LOW_STOCKS);
         } else {
             // 更新数据库商品库存
             int count = secKillDao.updateStockByOptimisticLock(product);
             if (count != 1) {
                 // 更新数据库商品库存失败，回滚之前修改的缓存库存
                 jedis.incr(cacheProductStockKey);
-                throw new RuntimeException("productId:[" +productId+ "]，并发更新库存失败");
+                throw new SecKillException(StatusEnum.LOW_STOCKS);
             }
             // 更新缓存版本号
             jedis.incr(cacheProductVersionKey);
@@ -153,21 +170,23 @@ public class SecKillServiceImpl implements ISecKillService {
     }
 
     /**
-     * 创建订单到消息队列
+     * 创建订单
      * */
-    private void createOrder(Product product, User user) {
+    private void createOrder(Product product, User user, Jedis jedis) {
         DateTime dateTime = new DateTime();
         Timestamp ts = new Timestamp(dateTime.getMillis());
         Order order = new Order(user,product,ts);
-        // 放到消息队列
-        int count = orderProducer.product(order);
+        // 放到消息队列,可以提示用户正在排队中... ...
+        orderProducer.product(order);
         // 放到数据库
-        // int count = secKillDao.createOrder(order);
-        if (count != 1) {
-            // 此时库存已经扣除
-            LOGGER.error("userId[{}] productId[{}] 创建订单失败"); // 查看指定类型的日志，避免订单异常。
-            throw new RuntimeException("userId[" + user.getId() + "] " +"productId[" + product.getId() +"] 创建订单失败");
-        }
+//         int count = secKillDao.createOrder(order);
+//        if (count != 1) {
+//            // 此时库存已经扣除 TODO 是否需要回滚数据？比如socket timeout... ...蓝廋
+//            throw new SecKillException(StatusEnum.ORDER_ERROR);
+//        }
+        // 添加到购买记录
+        String itemKey = user.getId() + "" + product.getId();
+        jedis.sadd("item",itemKey);
     }
 
     /**
@@ -189,17 +208,17 @@ public class SecKillServiceImpl implements ISecKillService {
                 count = secKillDao.updateStockByOptimisticLock(product);
                 /* 更新库存失败 TODO:进行自旋重新尝试购买 */
                 if (count != 1) {
-                    status = StatusEnum.FAIL;
+                    status = StatusEnum.SYSTEM_EXCEPTION;
                 } else {
                     // 创建订单
-                    createOrder(product,user);
+                    createOrder(product,user,jedisPool.getResource());
                 }
             } else { // 库存不足
                 status = StatusEnum.LOW_STOCKS;
-                LOGGER.warn("库存不足 productId： [{}] productName：[{}]",productId,product.getProductName());
+                log.warn("库存不足 productId： [{}] productName：[{}]",productId,product.getProductName());
             }
         } catch (Exception e) {
-            LOGGER.error("秒杀失败",e);
+            log.error("秒杀失败",e);
             status = StatusEnum.SYSTEM_EXCEPTION;
         }
         return status;
@@ -224,7 +243,7 @@ public class SecKillServiceImpl implements ISecKillService {
                 count = secKillDao.updateStockByPessimisticLock(product);
                 // 更新失败
                 if (count != 1) {
-                    status = StatusEnum.FAIL;
+                    status = StatusEnum.SYSTEM_EXCEPTION;
                 } else {
                     // 创建订单
                     DateTime dateTime = new DateTime();
@@ -234,10 +253,10 @@ public class SecKillServiceImpl implements ISecKillService {
                 }
             } else { // 库存不足
                 status = StatusEnum.LOW_STOCKS;
-                LOGGER.warn("库存不足 productId： [{}] productName：[{}]", productId, product.getProductName());
+                log.warn("库存不足 productId： [{}] productName：[{}]", productId, product.getProductName());
             }
         } catch (Exception e) {
-            LOGGER.error("创建订单失败",e);
+            log.error("创建订单失败",e);
             status = StatusEnum.SYSTEM_EXCEPTION;
         }
         return status;
