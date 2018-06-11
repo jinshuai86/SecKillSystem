@@ -21,16 +21,9 @@ public class OrderProducer implements Producer<Order> {
     private RocketMQTemplate rocketMQTemplate;
 
     @Override
-    public int product(Order order) {
-        int count = 1;
-        try {
-            rocketMQTemplate.convertAndSend("orderTopic", order);
-//            log.info("订单入队成功[{}]",order);
-        } catch (Exception e) {
-            log.error("订单入队异常",e);
-            count = 0;
-        }
-        return count;
+    public void product(Order order) {
+        rocketMQTemplate.convertAndSend("orderTopic", order);
+        // log.info("订单入队成功[{}]",order);
     }
 
 }
