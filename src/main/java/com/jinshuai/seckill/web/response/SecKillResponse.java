@@ -1,4 +1,4 @@
-package com.jinshuai.seckill.common;
+package com.jinshuai.seckill.web.response;
 
 /**
  * @author: JS
@@ -6,12 +6,19 @@ package com.jinshuai.seckill.common;
  * @description:
  * 响应消息
  */
-public class Message {
+public class SecKillResponse {
 
+    /**
+     * 状态，比如库存不足，参数不完整，下单成功
+     * */
     private String status;
+
+    /**
+     * 对应的状态码
+     * */
     private String statusCode;
 
-    public Message(String status, String statusCode) {
+    public SecKillResponse(String status, String statusCode) {
         this.status = status;
         this.statusCode = statusCode;
     }
@@ -27,12 +34,12 @@ public class Message {
         return statusCode;
     }
 
-    public Message setStatus(String status) {
+    public SecKillResponse setStatus(String status) {
         this.status = status;
         return this;
     }
 
-    public Message setStatusCode(String statusCode) {
+    public SecKillResponse setStatusCode(String statusCode) {
         this.statusCode = statusCode;
         return this;
     }

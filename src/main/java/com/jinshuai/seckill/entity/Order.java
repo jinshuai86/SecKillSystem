@@ -1,5 +1,7 @@
 package com.jinshuai.seckill.entity;
 
+import lombok.Data;
+
 import java.sql.Timestamp;
 
 /**
@@ -8,6 +10,7 @@ import java.sql.Timestamp;
  * @description:
  * 暂时没有考虑范式规范
  */
+@Data
 public class Order {
     /**
      * 订单ID
@@ -42,47 +45,5 @@ public class Order {
         this.user = user;
         this.product = product;
         this.createTime = createTime;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product product) {
-        this.product = product;
-    }
-
-    public Timestamp getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Timestamp createTime) {
-        this.createTime = createTime;
-    }
-
-    @Override
-    public String toString() {
-        return "Order{" +
-                "id=" + id +
-                ", user=" + user +
-                ", product=" + product +
-                ", createTime=" + createTime +
-                '}';
     }
 }

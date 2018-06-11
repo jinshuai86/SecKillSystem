@@ -1,5 +1,7 @@
 package com.jinshuai.seckill.entity;
 
+import lombok.Data;
+
 import java.math.BigDecimal;
 
 /**
@@ -7,6 +9,7 @@ import java.math.BigDecimal;
  * @date: 2018/6/3
  * @description:
  */
+@Data
 public class Product {
 
     /**

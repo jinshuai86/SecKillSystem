@@ -1,4 +1,4 @@
-package com.jinshuai.seckill.utils;
+package com.jinshuai.seckill.util;
 
 /**
  * @author: JS

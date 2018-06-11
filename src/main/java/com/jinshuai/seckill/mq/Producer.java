@@ -8,6 +8,6 @@ public interface Producer<T> {
     /**
      * 创建队列元素
      * */
-    int product(T t);
+    void product(T t);
 
 }

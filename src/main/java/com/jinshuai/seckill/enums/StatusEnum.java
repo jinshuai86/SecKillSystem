@@ -1,31 +1,41 @@
 package com.jinshuai.seckill.enums;
 
+import com.jinshuai.seckill.constant.SecKillStateConstant;
+
+/**
+ * 描述请求过程中的状态信息，作为自定义异常类的构造参数。
+ * */
 public enum StatusEnum {
 
     /**
      * 秒杀成功
      * */
-    SUCCESS("SUCCESS","1"),
+    SUCCESS("秒杀成功",SecKillStateConstant.SUCCESS),
 
     /**
-     * 库存不足 秒杀失败
+     * 库存不足
      * */
-    LOW_STOCKS("FAIL","0"),
+    LOW_STOCKS("库存不足",SecKillStateConstant.LOW_STOCKS),
 
     /**
-     * 系统出错 秒杀失败
+     * 重复购买
      * */
-    SYSTEM_EXCEPTION("FAIL","-1"),
+    REPEAT("不可重复购买",SecKillStateConstant.REPEAT),
 
     /**
-     * 请求参数不完整 禁止后续请求
+     * 请求参数不合法 {1. 不完整 2. 故意不命中缓存}
      * */
-    INCOMPLETE_ARGUMENTS("INCOMPLETE_ARGUMENTS","-2"),
+    INCOMPLETE_ARGUMENTS("请求参数不合法",SecKillStateConstant.INCOMPLETE_ARGUMENTS),
 
     /**
-     * 其他 秒杀失败
+     * 订单入队列失败
      * */
-    FAIL("FAIL","999"),
+    ORDER_ERROR("创建订单异常",SecKillStateConstant.ORDER_ERROR),
+
+    /**
+     * 系统出错
+     * */
+    SYSTEM_EXCEPTION("系统异常",SecKillStateConstant.SYSTEM_EXCEPTION),
     ;
 
     private String status;
