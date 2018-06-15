@@ -75,8 +75,11 @@ public class SeckillApplicationTests {
 	@Test
 	public void testJedis() {
 		Jedis jedis = jedisPool.getResource();
-		jedis.set("name","靳帅");
-		System.out.println(jedis.get("name"));
+		String s = jedis.set("name","靳帅");
+		System.out.println(s);
+		s = jedis.set("name","靳帅");
+		System.out.println( "s again = " + s);
+		//System.out.println(jedis.get("name"));
 
 	}
 
@@ -94,7 +97,7 @@ public class SeckillApplicationTests {
 		user.setId(1);
 		Product product = new Product();
 		product.setId(1);
-		Order order = new Order();
+		Order order = new Order(user,product,null);
 		order.setId(1234);
 		order.setProduct(product);
 		order.setUser(user);

@@ -32,14 +32,7 @@ public class Order {
      * */
     private Timestamp createTime;
 
-    public Order(){}
-
-    public Order(int id, User user, Product product, Timestamp createTime) {
-        this.id = id;
-        this.user = user;
-        this.product = product;
-        this.createTime = createTime;
-    }
+    Order(){}
 
     public Order(User user, Product product, Timestamp createTime) {
         this.user = user;
