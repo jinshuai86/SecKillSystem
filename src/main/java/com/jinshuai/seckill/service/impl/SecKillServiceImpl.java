@@ -10,17 +10,12 @@ import com.jinshuai.seckill.mq.Producer;
 import com.jinshuai.seckill.service.ISecKillService;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -114,13 +109,21 @@ public class SecKillServiceImpl implements ISecKillService {
                 // 通过缓存没意义的数据防止缓存穿透
                 jedis.set(cacheProductKey,"penetration");
                 throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
-            } else {
-                // 存储层存在此商品，添加到缓存
-                jedis.set(cacheProductKey,String.valueOf(product.getStock()));
-                // 检查此商品在缓存里的库存
-                checkCacheStock(productId, jedis);
             }
-        } else {
+            // 存储层存在此商品，添加到缓存：先判断再修改会导致并发修改不安全，通过加锁避免
+            else {
+                synchronized (this.getClass()) {
+                    // 如果没有在缓存中设置此商品，再设置
+                    if (jedis.get(cacheProductKey) == null) {
+                        jedis.set(cacheProductKey,String.valueOf(product.getStock()));
+                    }
+                    // 检查此商品在缓存里的库存
+                    checkCacheStock(productId, jedis);
+                }
+            }
+        }
+        // 缓存命中
+        else {
             // 命中无意义数据
             if ("penetration".equals(stockStr)) {
                 throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
@@ -231,7 +234,7 @@ public class SecKillServiceImpl implements ISecKillService {
     @Transactional(rollbackFor = Exception.class)
     public StatusEnum updateStockByPessimisticLock(Map<String,Integer> parameter) {
         StatusEnum status = StatusEnum.SUCCESS;
-        int count = 0;
+        int count;
         try {
             int userId = parameter.get("userId");
             User user = secKillDao.getUserById(userId);
