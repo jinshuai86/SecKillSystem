@@ -1,6 +1,7 @@
 package com.jinshuai.seckill;
 
 import com.alibaba.fastjson.JSON;
+import com.jinshuai.seckill.controller.SecKillController;
 import com.jinshuai.seckill.dao.ISecKillDao;
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
@@ -8,6 +9,7 @@ import com.jinshuai.seckill.entity.User;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -26,6 +28,9 @@ public class SeckillApplicationTests {
 
 	@Autowired
 	private ISecKillDao secKillDao;
+
+	@Autowired
+	private SecKillController secKillController;
 
 	@Test
 	public void contextLoads() {
@@ -85,10 +90,10 @@ public class SeckillApplicationTests {
 
 	@Test
 	public void testDao() {
+		System.out.println(AopUtils.isAopProxy(secKillController));
+		System.out.println(AopUtils.isAopProxy(secKillDao));
 		List<Product> productList = secKillDao.getAllProducts();
-		productList.forEach(v -> {
-			System.out.println(v);
-		});
+		productList.forEach(System.out::println);
 	}
 
 	@Test

@@ -179,7 +179,7 @@ public class SecKillServiceImpl implements ISecKillService {
         DateTime dateTime = new DateTime();
         Timestamp ts = new Timestamp(dateTime.getMillis());
         Order order = new Order(user,product,ts);
-        // 放到消息队列,可以提示用户正在排队中... ...
+        // 放到消息队列 TODO 可以提示用户正在排队中... ...
         orderProducer.product(order);
         // 放到数据库
 //         int count = secKillDao.createOrder(order);
