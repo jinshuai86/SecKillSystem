@@ -28,6 +28,7 @@ public class DataSourceAspect {
             String dataSourceKey = targetDataSourceAnnotation.value();
             RoutingDataSourceContext routingDataSourceContext = RoutingDataSourceContext.getInstance();
             routingDataSourceContext.setThreadLocalDataSourceKey(dataSourceKey);
+            log.info("用的数据源：{}",dataSourceKey);
         }
     }
 

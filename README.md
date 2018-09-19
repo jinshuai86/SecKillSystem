@@ -1,5 +1,6 @@
 # SecKillSystem
 秒杀系统设计思路与实现
+
 ## 瓶颈
 - 数据库交互
 
@@ -9,15 +10,13 @@
   - 对于查询库存操作通过缓存实现，减少数据库操作
 - 每次只放指定数量的请求到消息队列，等处理完毕再重新拉请求入队列。
 
-### TODO
-- 分布式集群(比如MySQL、Redis、SpringBoot集群、Nginx进行负载均衡)
-
 ## 实现
 1. 通过Redis实现缓存，每次查询库存都从Redis进行查找(注意缓存雪崩和缓存穿透)
-2. 使用RocketMQ作为消息队列
+2. 使用RocketMQ作为消息队列进行流量削峰
 3. SpringBoot(SSM)作为整个项目的框架，相比SpringDataJPA，MyBatis更灵活一些
-4. MySQL存放数据，目前分别采用乐观锁、悲观锁进行并发控制。
-5. Jmeter进行压力测试
+4. MySQL持久化数据，分别采用乐观锁、悲观锁进行并发控制并通过JMeter进行性能测试。
+5. 结合MySQL主从复制特性，在应用层通过AOP实现了读写分离
 
-## 代码
-1.配置Cache
+## TODO
+- 分布式集群(比如MySQL、Redis、SpringBoot集群、Nginx进行负载均衡)
+- 解决MySQL主从复制带来的数据不一致性问题
