@@ -80,6 +80,4 @@ public class SecKillController {
         return secKillResponse;
     }
 
-
-
 }

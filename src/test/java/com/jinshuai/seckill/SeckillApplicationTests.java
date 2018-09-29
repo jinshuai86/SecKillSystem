@@ -6,6 +6,8 @@ import com.jinshuai.seckill.dao.ISecKillDao;
 import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.entity.Product;
 import com.jinshuai.seckill.entity.User;
+import com.jinshuai.seckill.enums.StatusEnum;
+import com.jinshuai.seckill.exception.SecKillException;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,6 +23,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.UUID;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -80,12 +83,23 @@ public class SeckillApplicationTests {
 	@Test
 	public void testJedis() {
 		Jedis jedis = jedisPool.getResource();
-		String s = jedis.set("name","靳帅");
-		System.out.println(s);
-		s = jedis.set("name","靳帅");
-		System.out.println( "s again = " + s);
+//		String s = jedis.set("name","靳帅");
+//		System.out.println(s);
+//		s = jedis.set("name","靳帅");
+//		System.out.println( "s again = " + s);
 		//System.out.println(jedis.get("name"));
-
+		// 将用户Id和商品Id作为集合中唯一元素
+		String itemKey = "itemKey";
+		String isExist = jedis.get(itemKey);
+		jedis.select(0);
+		if (isExist == null) {
+			jedis.set(itemKey,"1");
+			jedis.expire(itemKey,1200);
+		} else if (Integer.valueOf(isExist) > 5) {
+			throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
+		} else  {
+			jedis.incr(itemKey);
+		}
 	}
 
 	@Test
