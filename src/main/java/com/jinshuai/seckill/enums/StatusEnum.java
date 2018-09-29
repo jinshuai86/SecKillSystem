@@ -36,6 +36,11 @@ public enum StatusEnum {
      * 系统出错
      * */
     SYSTEM_EXCEPTION("系统异常",SecKillStateConstant.SYSTEM_EXCEPTION),
+
+    /**
+     * 频繁请求
+     * */
+    FREQUENCY_REQUEST("频繁请求",SecKillStateConstant.FREQUENCY_REQUEST),
     ;
 
     private String status;

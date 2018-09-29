@@ -59,10 +59,13 @@ public class SecKillServiceImpl implements ISecKillService {
         User user = secKillDao.getUserById(userId);
         // 检查 -> 更新为非原子操作：可以在更新缓存库存以后检查缓存库存，如果是负数则更新失败，并将缓存库存恢复为0
         try (Jedis jedis = jedisPool.getResource()) { // 为了关闭jedis
+            // TODO 没有写ProductDao，临时设置的Product- -!!
             Product product = new Product();
             product.setId(productId);
             // 查看是否重复购买
-            checkRepeat(user,product,jedis);
+            checkRepeat(user, product, jedis);
+            // 限制请求次数
+            limitRequestTimes(user, product, jedis);
             // 查看缓存库存
             checkStock(product, jedis);
             // 构造版本号
@@ -85,9 +88,32 @@ public class SecKillServiceImpl implements ISecKillService {
      * */
     private void checkRepeat(User user, Product product, Jedis jedis) {
         // 将用户Id和商品Id作为集合中唯一元素
-        String itemKey = user.getId() + "" + product.getId();
+        String itemKey = String.valueOf(user.getId()) + String.valueOf(product.getId());
         if (jedis.sismember("item",itemKey)) {
             throw new SecKillException(StatusEnum.REPEAT);
+        }
+    }
+
+    /**
+     * 限速：用户1秒内请求次数不能超过5次
+     * */
+    private void limitRequestTimes(User user, Product product, Jedis jedis) {
+        // 将用户Id和商品Id作为key
+        String itemKey = String.valueOf(user.getId()) + String.valueOf(product.getId());
+        String reqTimes = jedis.get(itemKey);
+        // 第一次请求：设置初始值
+        if (reqTimes == null) {
+            jedis.set(itemKey,"1");
+            jedis.expire(itemKey,5);
+        }
+        // 限速
+        else if (Integer.valueOf(reqTimes) > 5) {
+            log.warn("用户[{}]频繁请求商品[{}]",user.getId(),product.getId());
+            throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
+        }
+        // 还没超过限制次数
+        else {
+            jedis.incr(itemKey);
         }
     }
 

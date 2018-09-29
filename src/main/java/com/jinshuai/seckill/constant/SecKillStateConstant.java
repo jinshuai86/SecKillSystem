@@ -38,4 +38,9 @@ public class SecKillStateConstant {
      * */
     public static final String SYSTEM_EXCEPTION = "-4";
 
+    /**
+     * 频繁请求
+     * */
+    public static final String FREQUENCY_REQUEST = "-5";
+
 }
