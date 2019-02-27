@@ -16,6 +16,7 @@
 3. SpringBoot(SSM)作为整个项目的框架，相比SpringDataJPA，MyBatis更灵活一些
 4. MySQL持久化数据，分别采用乐观锁、悲观锁进行并发控制并通过JMeter进行性能测试。
 5. 结合MySQL主从复制特性，在应用层通过AOP实现了读写分离
+6. 通过Redis复制以及哨兵机制实现了缓存高可用
 
 ## TODO
 - 分布式集群(比如MySQL、Redis、SpringBoot集群、Nginx进行负载均衡)
