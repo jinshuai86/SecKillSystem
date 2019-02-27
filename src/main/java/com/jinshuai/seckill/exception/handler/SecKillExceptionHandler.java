@@ -27,7 +27,7 @@ public class SecKillExceptionHandler {
         String status = e.getStatusEnum().getStatus();
         String statusCode = e.getStatusEnum().getStatusCode();
         SecKillResponse secKillResponse = new SecKillResponse(status,statusCode);
-        log.error(status);
+        log.warn(status);
         return secKillResponse;
     }
 
@@ -36,12 +36,12 @@ public class SecKillExceptionHandler {
      * */
     @ExceptionHandler(value = MessagingException.class)
     @ResponseBody
-    public SecKillResponse SecKillExceptionHandle() {
+    public SecKillResponse SecKillExceptionHandle(MessagingException e) {
         StatusEnum statusEnum = StatusEnum.ORDER_ERROR;
         String status = statusEnum.getStatus();
         String statusCode = statusEnum.getStatusCode();
         SecKillResponse secKillResponse = new SecKillResponse(status,statusCode);
-        log.error(status);
+        log.error(status,e);
         return secKillResponse;
     }
 

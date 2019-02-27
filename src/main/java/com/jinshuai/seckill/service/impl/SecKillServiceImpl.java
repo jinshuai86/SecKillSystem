@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisSentinelPool;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -33,7 +33,7 @@ public class SecKillServiceImpl implements ISecKillService {
     private ISecKillDao secKillDao;
 
     @Autowired
-    private JedisPool jedisPool;
+    private JedisSentinelPool jedisPool;
 
     @Autowired
     private Producer<Order> orderProducer;
@@ -53,6 +53,7 @@ public class SecKillServiceImpl implements ISecKillService {
      * */
     @Override
     public StatusEnum updateStockByOptimisticLock(Map<String,Integer> parameter) {
+        @SuppressWarnings("unchecked")
         StatusEnum status = StatusEnum.SUCCESS;
         int productId = parameter.get("productId");
         int userId = parameter.get("userId");
@@ -88,7 +89,7 @@ public class SecKillServiceImpl implements ISecKillService {
      * */
     private void checkRepeat(User user, Product product, Jedis jedis) {
         // 将用户Id和商品Id作为集合中唯一元素
-        String itemKey = String.valueOf(user.getId()) + String.valueOf(product.getId());
+        String itemKey = String.valueOf(user.getId()) + product.getId();
         if (jedis.sismember("item",itemKey)) {
             throw new SecKillException(StatusEnum.REPEAT);
         }
@@ -99,7 +100,7 @@ public class SecKillServiceImpl implements ISecKillService {
      * */
     private void limitRequestTimes(User user, Product product, Jedis jedis) {
         // 将用户Id和商品Id作为key
-        String itemKey = String.valueOf(user.getId()) + String.valueOf(product.getId());
+        String itemKey = String.valueOf(user.getId()) + product.getId();
         String reqTimes = jedis.get(itemKey);
         // 第一次请求：设置初始值
         if (reqTimes == null) {
