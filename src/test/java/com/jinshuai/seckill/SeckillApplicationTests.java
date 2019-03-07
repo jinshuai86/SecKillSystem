@@ -89,17 +89,27 @@ public class SeckillApplicationTests {
 //		System.out.println( "s again = " + s);
 		//System.out.println(jedis.get("name"));
 		// 将用户Id和商品Id作为集合中唯一元素
-		String itemKey = "itemKey";
-		String isExist = jedis.get(itemKey);
-		jedis.select(0);
-		if (isExist == null) {
-			jedis.set(itemKey,"1");
-			jedis.expire(itemKey,1200);
-		} else if (Integer.valueOf(isExist) > 5) {
-			throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
-		} else  {
-			jedis.incr(itemKey);
+//		String itemKey = "itemKey";
+//		String isExist = jedis.get(itemKey);
+//		jedis.select(0);
+//		if (isExist == null) {
+//			jedis.set(itemKey,"1");
+//			jedis.expire(itemKey,1200);
+//		} else if (Integer.valueOf(isExist) > 5) {
+//			throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
+//		} else  {
+//			jedis.incr(itemKey);
+//		}
+
+		for (int i = 0; i < 10; i++) {
+			System.out.println(jedis.sismember("orderUUID_Test",String.valueOf(i)));
 		}
+		for (int i = 0; i < 10; i++) {
+			jedis.sadd("orderUUID_Test",String.valueOf(i));
+		}
+
+
+
 	}
 
 	@Test
