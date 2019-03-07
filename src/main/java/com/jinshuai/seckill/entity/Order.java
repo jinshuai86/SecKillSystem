@@ -18,6 +18,11 @@ public class Order {
     private int id;
 
     /**
+     * 订单唯一标识
+     * */
+    private String orderUUID;
+
+    /**
      * 订单所属用户
      * */
     private User user;
@@ -34,9 +39,10 @@ public class Order {
 
     Order(){}
 
-    public Order(User user, Product product, Timestamp createTime) {
+    public Order(User user, Product product, Timestamp createTime, String orderUUID) {
         this.user = user;
         this.product = product;
         this.createTime = createTime;
+        this.orderUUID = orderUUID;
     }
 }

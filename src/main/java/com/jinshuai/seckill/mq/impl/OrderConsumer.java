@@ -7,8 +7,10 @@ import com.jinshuai.seckill.mq.Consumer;
 import com.qianmi.ms.starter.rocketmq.annotation.RocketMQMessageListener;
 import com.qianmi.ms.starter.rocketmq.core.RocketMQListener;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.common.message.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import redis.clients.jedis.JedisPool;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -25,9 +27,17 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
     @Autowired
     private ISecKillDao secKillDao;
 
+    @Autowired
+    private JedisPool jedisPool;
+
     @Override
     public void onMessage(String message) {
         Order order = JSON.parseObject(message,Order.class);
+        // 已经消费过此条消息
+        if (jedisPool.getResource().sismember("orderUUID",order.getOrderUUID())) {
+            log.error("消息[{}]被重复消费",order);
+        }
+        jedisPool.getResource().sadd("orderUUID",order.getOrderUUID());
         consume(order);
     }
 

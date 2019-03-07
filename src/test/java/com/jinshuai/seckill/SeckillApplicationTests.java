@@ -40,7 +40,7 @@ public class SeckillApplicationTests {
 		User user = secKillDao.getUserById(1);
 		Product product = secKillDao.getProductById(1);
 		Timestamp ts = new Timestamp(new DateTime().getMillis());
-		Order order = new Order(user,product,ts);
+		Order order = new Order(user,product,ts,"");
 		secKillDao.createOrder(order);
 	}
 
@@ -116,7 +116,7 @@ public class SeckillApplicationTests {
 		user.setId(1);
 		Product product = new Product();
 		product.setId(1);
-		Order order = new Order(user,product,null);
+		Order order = new Order(user,product,null,null);
 		order.setId(1234);
 		order.setProduct(product);
 		order.setUser(user);

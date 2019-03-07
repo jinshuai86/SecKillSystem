@@ -19,6 +19,7 @@ import redis.clients.jedis.JedisSentinelPool;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * @author: JS
@@ -205,7 +206,7 @@ public class SecKillServiceImpl implements ISecKillService {
     private void createOrder(Product product, User user, Jedis jedis) {
         DateTime dateTime = new DateTime();
         Timestamp ts = new Timestamp(dateTime.getMillis());
-        Order order = new Order(user,product,ts);
+        Order order = new Order(user,product,ts, UUID.randomUUID().toString());
         // 放到消息队列 TODO 可以提示用户正在排队中... ...
         orderProducer.product(order);
         // 放到数据库
@@ -278,7 +279,7 @@ public class SecKillServiceImpl implements ISecKillService {
                     // 创建订单
                     DateTime dateTime = new DateTime();
                     Timestamp ts = new Timestamp(dateTime.getMillis());
-                    Order order = new Order(user,product,ts);
+                    Order order = new Order(user,product,ts,UUID.randomUUID().toString());
                     secKillDao.createOrder(order);
                 }
             } else { // 库存不足
