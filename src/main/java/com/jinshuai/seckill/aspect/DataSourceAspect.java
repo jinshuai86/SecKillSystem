@@ -28,14 +28,14 @@ public class DataSourceAspect {
             String dataSourceKey = targetDataSourceAnnotation.value();
             RoutingDataSourceContext routingDataSourceContext = RoutingDataSourceContext.getInstance();
             routingDataSourceContext.setThreadLocalDataSourceKey(dataSourceKey);
-            log.info("用的数据源：{}",dataSourceKey);
+//            log.info("用的数据源：{}",dataSourceKey);
         }
     }
 
     @After("@annotation(com.jinshuai.seckill.annotation.TargetDataSource)")
     public void doAfter() {
         RoutingDataSourceContext routingDataSourceContext = RoutingDataSourceContext.getInstance();
-        routingDataSourceContext.removeThreadLoclDataSourceKey();
-        log.info("cleaned the key of dataSource in threadLocal");
+        routingDataSourceContext.removeThreadLocalDataSourceKey();
+//        log.info("cleaned the key of dataSource in threadLocal");
     }
 }

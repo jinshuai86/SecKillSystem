@@ -47,14 +47,10 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
                 log.warn("消息[{}]已经被消费",order);
                 return;
             }
+            // 添加这条订单的UUID到Redis中
             jedis.sadd("orderUUID", order.getOrderUUID());
-
-            int count = secKillDao.createOrder(order);
-            if (count != 1) {
-                log.error("订单[{}]出队进入数据库失败",order);
-            } else {
-                log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
-            }
+            secKillDao.createOrder(order);
+            log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
         } catch (Exception e) {
             log.error("订单[{}]出队异常",order,e);
         }

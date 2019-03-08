@@ -33,9 +33,8 @@ public class RoutingDataSourceContext {
         return this.threadLocalDataSourceKey.get();
     }
 
-    public void removeThreadLoclDataSourceKey() {
+    public void removeThreadLocalDataSourceKey() {
         this.threadLocalDataSourceKey.remove();
     }
-
 
 }
