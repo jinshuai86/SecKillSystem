@@ -28,6 +28,7 @@ import java.util.UUID;
  */
 @Service
 @Slf4j
+@Transactional(rollbackFor = Exception.class)
 public class SecKillServiceImpl implements ISecKillService {
 
     @Autowired
