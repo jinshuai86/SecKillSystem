@@ -7,7 +7,6 @@ import com.jinshuai.seckill.mq.Consumer;
 import com.qianmi.ms.starter.rocketmq.annotation.RocketMQMessageListener;
 import com.qianmi.ms.starter.rocketmq.core.RocketMQListener;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.common.message.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.Jedis;
