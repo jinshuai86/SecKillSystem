@@ -34,7 +34,7 @@ public class SecKillController {
      */
     @PostMapping(value = "/optimistic")
     @TargetDataSource
-    SecKillResponse updateStockByOptimisticLock(@RequestBody SecKillRequest secKillRequest) {
+    SecKillResponse updateStockByOptimisticLock(@RequestBody SecKillRequest secKillRequest) throws SecKillException {
         // 初始化响应信息
         StatusEnum statusEnum = StatusEnum.INCOMPLETE_ARGUMENTS;
         SecKillResponse secKillResponse = new SecKillResponse(statusEnum.getStatus(), statusEnum.getStatusCode());

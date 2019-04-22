@@ -9,7 +9,7 @@ import lombok.Data;
  * @description: 通过此类进行构造秒杀过程中产生的异常
  */
 @Data
-public class SecKillException extends RuntimeException{
+public class SecKillException extends Exception{
 
     private StatusEnum statusEnum;
 
