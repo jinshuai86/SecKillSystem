@@ -69,7 +69,7 @@ public class DynamicDataSourceConfig {
     @Bean
     @ConfigurationProperties(prefix = "mybatis")
     @Primary
-    public SqlSessionFactoryBean getSqlSessionFactoryBean(@Qualifier("dynamicDataSource") DataSource dynamicDataSource) throws IOException {
+    public SqlSessionFactoryBean getSqlSessionFactoryBean(@Qualifier("dynamicDataSource") DataSource dynamicDataSource) {
         SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
         sqlSessionFactoryBean.setDataSource(dynamicDataSource);
         return sqlSessionFactoryBean;

@@ -221,7 +221,6 @@ public class SecKillServiceImpl implements ISecKillService {
     /**
      * 乐观锁：未加缓存
      * */
-//  @Override
     public StatusEnum _updateStockByOptimisticLock(Map<String,Integer> parameter) {
         StatusEnum status = StatusEnum.SUCCESS;
         int productId = parameter.get("productId");

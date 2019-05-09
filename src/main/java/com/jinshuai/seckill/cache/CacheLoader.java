@@ -33,8 +33,7 @@ public class CacheLoader {
      * */
     @PostConstruct
     private void initCache() {
-        try {
-            Jedis jedis = jedisPool.getResource();
+        try (Jedis jedis = jedisPool.getResource()) {
             // 清除旧的缓存
             jedis.flushDB();
             // 通过管道执行批处理
@@ -42,7 +41,6 @@ public class CacheLoader {
             List<Product> productList = secKillDao.getAllProducts();
             productList.forEach(product -> {
                 pipeline.set("product:" + product.getId() + ":stock", String.valueOf(product.getStock()));
-//                pipeline.set("product:" + product.getId() + ":version", String.valueOf(product.getVersion()));
             });
             pipeline.sync();
             log.info("商品库存、版本号已加载到缓存中！！！");
