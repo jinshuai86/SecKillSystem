@@ -1,5 +1,7 @@
 package com.jinshuai.seckill.service.impl;
 
+import com.jinshuai.seckill.annotation.TargetDataSource;
+import com.jinshuai.seckill.constant.DataSourceConstant;
 import com.jinshuai.seckill.dao.IUserDao;
 import com.jinshuai.seckill.entity.User;
 import com.jinshuai.seckill.service.IUserService;
@@ -32,11 +34,13 @@ public class UserServiceImpl implements IUserService {
         userDao.updateUser(user);
     }
 
+    @TargetDataSource(DataSourceConstant.SLAVE)
     @Override
     public List<User> listUsers() {
         return userDao.listUsers();
     }
 
+    @TargetDataSource(DataSourceConstant.SLAVE)
     @Override
     public User getUserById(int userId) {
         return  userDao.getUserById(userId);

@@ -22,3 +22,7 @@
 
 ## 乐观锁&&缓存结果  
 ![乐观锁&&缓存](imgs/optiCacheX2.png)  
+
+## TODO 50000并发量测试 
+  > 测试脚本环境：E3-1230 v5 @ 3.40GHz X4  8G RAM  
+  > 项目运行环境：Intel Core 2 Quad Q8400 2.66GHz X1 4G RAM

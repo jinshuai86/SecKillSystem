@@ -1,7 +1,5 @@
 package com.jinshuai.seckill.controller;
 
-import com.jinshuai.seckill.annotation.TargetDataSource;
-import com.jinshuai.seckill.constant.DataSourceConstant;
 import com.jinshuai.seckill.enums.StatusEnum;
 import com.jinshuai.seckill.exception.SecKillException;
 import com.jinshuai.seckill.service.ISecKillService;
@@ -13,7 +11,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,7 +30,6 @@ public class SecKillController {
      * 乐观锁
      */
     @PostMapping(value = "/optimistic")
-    @TargetDataSource
     SecKillResponse updateStockByOptimisticLock(@RequestBody SecKillRequest secKillRequest) throws SecKillException {
         // 初始化响应信息
         StatusEnum statusEnum = StatusEnum.INCOMPLETE_ARGUMENTS;
@@ -59,7 +55,6 @@ public class SecKillController {
      * 悲观锁
      */
     @PostMapping("/pessimistic")
-    @TargetDataSource
     SecKillResponse updateStockByPessimisticLock(@RequestBody SecKillRequest secKillRequest) {
 
         StatusEnum statusEnum = StatusEnum.INCOMPLETE_ARGUMENTS;
