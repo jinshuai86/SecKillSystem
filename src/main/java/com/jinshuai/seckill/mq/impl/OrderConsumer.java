@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisSentinelPool;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,7 +28,7 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
     private ISecKillDao secKillDao;
 
     @Autowired
-    private JedisPool jedisPool;
+    private JedisSentinelPool jedisPool;
 
     private AtomicInteger orderNums = new AtomicInteger(0);
 
@@ -49,7 +49,7 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
             // 添加这条订单的UUID到Redis中
             jedis.sadd("orderUUID", order.getOrderUUID());
             secKillDao.createOrder(order);
-            log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
+//            log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
         } catch (Exception e) {
             log.error("订单[{}]出队异常",order,e);
         }

@@ -8,6 +8,9 @@ import com.jinshuai.seckill.entity.Product;
 import com.jinshuai.seckill.entity.User;
 import com.jinshuai.seckill.enums.StatusEnum;
 import com.jinshuai.seckill.exception.SecKillException;
+import com.jinshuai.seckill.service.ISecKillService;
+import com.jinshuai.seckill.service.IUserService;
+import com.jinshuai.seckill.service.impl.SecKillServiceImpl;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,6 +38,12 @@ public class SeckillApplicationTests {
 	@Autowired
 	private SecKillController secKillController;
 
+	@Autowired
+	private ISecKillService secKillService;
+
+	@Autowired
+	private IUserService userService;
+
 	@Test
 	public void contextLoads() {
 		User user = secKillDao.getUserById(1);
@@ -49,10 +58,10 @@ public class SeckillApplicationTests {
 		StringBuilder stringBuilder = new StringBuilder();
 		String init = "INSERT INTO `user`(username,phone) VALUES ('jinshuai','13622155400');";
 		stringBuilder.append(init + "\n");
-		for (int i = 0; i < 1000; i++) {
+		for (int i = 0; i < 300000; i++) {
 			stringBuilder.append(init+"\n");
 		}
-		File file = new File("F:/insertUser.sql");
+		File file = new File("D:/insertUser.sql");
 		try (FileWriter fileWriter = new FileWriter(file)){
             fileWriter.write(stringBuilder.toString());
         } catch (IOException e1) {
@@ -63,12 +72,12 @@ public class SeckillApplicationTests {
 	@Test
 	public void createRobot() {
 		StringBuilder stringBuilder = new StringBuilder();
-		for (int i = 1000; i > 0; i--) {
-			String userId = ((int)(Math.random() * 1000)) % 943 + ",";
+		for (int i = 300000; i > 0; i--) {
+			String userId = ((int)(Math.random() * 300000)) + ",";
 			String productId = ((int)(Math.random() * 10)) % 5 + "";
 			stringBuilder.append(userId + productId + "\n");
 		}
-		File file = new File("F:/robot.txt");
+		File file = new File("D:/robot.txt");
 		try (FileWriter fileWriter = new FileWriter(file)){
 			fileWriter.write(stringBuilder.toString());
 			fileWriter.flush();
@@ -116,8 +125,17 @@ public class SeckillApplicationTests {
 	public void testDao() {
 		System.out.println(AopUtils.isAopProxy(secKillController));
 		System.out.println(AopUtils.isAopProxy(secKillDao));
-		List<Product> productList = secKillDao.getAllProducts();
+		List<Product> productList = secKillService.getAllProduct();
 		productList.forEach(System.out::println);
+	}
+
+	@Test
+	public void testUserService() {
+//		List<User> users = userService.listUsers();
+		User user = new User();
+		user.setUsername("master");
+		userService.insertUser(user);
+//		users.forEach(System.out::println);
 	}
 
 	@Test

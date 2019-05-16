@@ -193,6 +193,7 @@ public void consume(Order order) {
 - [x] SpringBoot(SSM)作为整个项目的框架，**个人感觉**相比SpringDataJPA，MyBatis更灵活一些
 - [x] MySQL持久化数据，分别采用乐观锁、悲观锁进行并发控制并通过JMeter进行性能测试。
 - [x] 结合MySQL主从复制特性，在应用层通过AOP实现了读写分离
+- [x] 通过MyCat代理实现读写分离
 
 ## TODO
 - [ ] 分布式集群(比如MySQL、Redis、~~SpringBoot、Nginx进行负载均衡~~)

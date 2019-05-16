@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,7 +29,7 @@ public class DataSourceAspect {
             String dataSourceKey = targetDataSourceAnnotation.value();
             RoutingDataSourceContext routingDataSourceContext = RoutingDataSourceContext.getInstance();
             routingDataSourceContext.setThreadLocalDataSourceKey(dataSourceKey);
-//            log.info("用的数据源：{}",dataSourceKey);
+            log.info("用的数据源：{}",dataSourceKey);
         }
     }
 
