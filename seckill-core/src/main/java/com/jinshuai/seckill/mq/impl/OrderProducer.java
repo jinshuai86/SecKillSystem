@@ -1,7 +1,7 @@
 package com.jinshuai.seckill.mq.impl;
 
-import com.jinshuai.seckill.entity.Order;
 import com.jinshuai.seckill.mq.Producer;
+import com.jinshuai.seckill.order.entity.Order;
 import com.qianmi.ms.starter.rocketmq.core.RocketMQTemplate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

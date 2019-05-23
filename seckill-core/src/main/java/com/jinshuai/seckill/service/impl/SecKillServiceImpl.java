@@ -1,15 +1,15 @@
 package com.jinshuai.seckill.service.impl;
 
-import com.jinshuai.seckill.annotation.TargetDataSource;
-import com.jinshuai.seckill.constant.DataSourceConstant;
-import com.jinshuai.seckill.dao.ISecKillDao;
-import com.jinshuai.seckill.entity.Order;
-import com.jinshuai.seckill.entity.Product;
-import com.jinshuai.seckill.entity.User;
-import com.jinshuai.seckill.enums.StatusEnum;
-import com.jinshuai.seckill.exception.SecKillException;
+import com.jinshuai.seckill.account.dao.UserDao;
+import com.jinshuai.seckill.account.entity.User;
+import com.jinshuai.seckill.common.enums.StatusEnum;
+import com.jinshuai.seckill.common.exception.SecKillException;
 import com.jinshuai.seckill.mq.Producer;
-import com.jinshuai.seckill.service.ISecKillService;
+import com.jinshuai.seckill.order.dao.OrderDao;
+import com.jinshuai.seckill.order.entity.Order;
+import com.jinshuai.seckill.product.dao.ProductDao;
+import com.jinshuai.seckill.product.entity.Product;
+import com.jinshuai.seckill.service.SecKillService;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,6 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisSentinelPool;
 
 import java.sql.Timestamp;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,30 +30,24 @@ import java.util.UUID;
 @Service
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
-public class SecKillServiceImpl implements ISecKillService {
+public class SecKillServiceImpl implements SecKillService {
 
     @Autowired
-    private ISecKillDao secKillDao;
+    private OrderDao orderDao;
 
     @Autowired
-    private JedisSentinelPool jedisPool;
+    private ProductDao productDao;
+
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private JedisSentinelPool jedisSentinelPool;
 
     private ThreadLocal<Jedis> jedisContainer = new ThreadLocal<>();
 
     @Autowired
     private Producer<Order> orderProducer;
-
-    @TargetDataSource(DataSourceConstant.SLAVE)
-    @Override
-    public Product getProductById(Integer productId) {
-        return secKillDao.getProductById(productId);
-    }
-
-    @TargetDataSource(DataSourceConstant.SLAVE)
-    @Override
-    public List<Product> getAllProduct() {
-        return secKillDao.getAllProducts();
-    }
 
     /**
      * 乐观锁：加缓存、加消息队列
@@ -64,11 +57,11 @@ public class SecKillServiceImpl implements ISecKillService {
         StatusEnum status = StatusEnum.SUCCESS;
         int productId = parameter.get("productId");
         int userId = parameter.get("userId");
-        User user = secKillDao.getUserById(userId);
+        User user = userDao.getUserById(userId);
         // 检查 -> 更新为非原子操作：可以在更新缓存库存以后检查缓存库存，如果是负数则更新失败，并将缓存库存恢复为0
-        try (Jedis jedis = jedisPool.getResource()) {
+        try (Jedis jedis = jedisSentinelPool.getResource()) {
             jedisContainer.set(jedis);
-            Product product = secKillDao.getProductById(productId);
+            Product product = productDao.getProductById(productId);
             // 查看是否重复购买
             checkRepeat(user, product);
             // 限制请求次数
@@ -135,7 +128,7 @@ public class SecKillServiceImpl implements ISecKillService {
         if (stockStr == null) {
             log.warn("商品编号: [{}] 未在缓存命中", productId);
             // 在存储层去查找
-            product = secKillDao.getProductById(productId);
+            product = productDao.getProductById(productId);
             // 存储层不存在此商品
             if (product == null) {
                 log.warn("商品编号: [{}] 未在存储层命中,已添加冗余数据到缓存", productId);
@@ -195,7 +188,7 @@ public class SecKillServiceImpl implements ISecKillService {
             throw new SecKillException(StatusEnum.LOW_STOCKS);
         } else {
             // 更新数据库商品库存
-            int count = secKillDao.updateStockByOptimisticLock(product);
+            int count = productDao.updateStockByOptimisticLock(product);
             if (count != 1) {
                 // 更新数据库商品库存失败，回滚之前修改的缓存库存
                 jedis.incr(cacheProductStockKey);
@@ -221,21 +214,21 @@ public class SecKillServiceImpl implements ISecKillService {
 
     /**
      * 乐观锁：未加缓存
-<<<<<<< HEAD
-     * */
-    public StatusEnum _updateStockByOptimisticLock(Map<String,Integer> parameter) {
+     *
+     */
+    public StatusEnum _updateStockByOptimisticLock(Map<String, Integer> parameter) {
         StatusEnum status = StatusEnum.SUCCESS;
         int productId = parameter.get("productId");
-        Product product = secKillDao.getProductById(productId);
+        Product product = productDao.getProductById(productId);
         int userId = parameter.get("userId");
-        User user = secKillDao.getUserById(userId);
+        User user = userDao.getUserById(userId);
         try {
             // 更新/修改成功标志位
             int count = 0;
             // 检查库存
             if (product.getStock() > 0) {
                 /* 更新库存 TODO:锁库存而不是更新库存：创建订单失败，此次操作需要回滚。 */
-                count = secKillDao.updateStockByOptimisticLock(product);
+                count = productDao.updateStockByOptimisticLock(product);
                 /* 更新库存失败 TODO:进行自旋重新尝试购买 */
                 if (count != 1) {
                     status = StatusEnum.SYSTEM_EXCEPTION;
@@ -264,13 +257,13 @@ public class SecKillServiceImpl implements ISecKillService {
         int count;
         try {
             int userId = parameter.get("userId");
-            User user = secKillDao.getUserById(userId);
+            User user = userDao.getUserById(userId);
             int productId = parameter.get("productId");
-            Product product = secKillDao.getAndLockProductById(productId);
+            Product product = productDao.getAndLockProductById(productId);
             // 库存充足
             if (product.getStock() > 0) {
                 // 更新库存
-                count = secKillDao.updateStockByPessimisticLock(product);
+                count = productDao.updateStockByPessimisticLock(product);
                 // 更新失败
                 if (count != 1) {
                     status = StatusEnum.SYSTEM_EXCEPTION;
@@ -279,7 +272,7 @@ public class SecKillServiceImpl implements ISecKillService {
                     DateTime dateTime = new DateTime();
                     Timestamp ts = new Timestamp(dateTime.getMillis());
                     Order order = new Order(user, product, ts, UUID.randomUUID().toString());
-                    secKillDao.createOrder(order);
+                    orderDao.createOrder(order);
                 }
             } else { // 库存不足
                 status = StatusEnum.LOW_STOCKS;

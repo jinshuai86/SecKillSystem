@@ -1,10 +1,10 @@
 package com.jinshuai.seckill.controller;
 
-import com.jinshuai.seckill.enums.StatusEnum;
-import com.jinshuai.seckill.exception.SecKillException;
-import com.jinshuai.seckill.service.ISecKillService;
-import com.jinshuai.seckill.web.request.SecKillRequest;
-import com.jinshuai.seckill.web.response.SecKillResponse;
+import com.jinshuai.seckill.common.enums.StatusEnum;
+import com.jinshuai.seckill.common.exception.SecKillException;
+import com.jinshuai.seckill.service.SecKillService;
+import com.jinshuai.seckill.common.web.SecKillRequest;
+import com.jinshuai.seckill.common.web.SecKillResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,7 +24,7 @@ import java.util.Map;
 public class SecKillController {
 
     @Autowired
-    private ISecKillService secKillService;
+    private SecKillService secKillService;
 
     /**
      * 乐观锁

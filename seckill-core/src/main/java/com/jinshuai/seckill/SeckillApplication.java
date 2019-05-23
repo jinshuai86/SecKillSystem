@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
-@MapperScan("com.jinshuai.seckill.dao")
+@MapperScan(basePackages = {"com.jinshuai.seckill.dao", "com.jinshuai.seckill.account.dao", "com.jinshuai.seckill.product.dao", "com.jinshuai.seckill.order.dao"})
 public class SeckillApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SeckillApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SeckillApplication.class, args);
+    }
 }
