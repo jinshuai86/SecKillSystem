@@ -115,8 +115,49 @@ private void checkCacheStock(int productId) throws SecKillException {
 ```
 
 #### 4 更新库存
-查询Redis中缓存的商品库存，因为这里涉及到先查询库存，操作一：**如果**库存大于0 操作二：更新库存。不是原子操作，在多线程并发情况下，比如库存中某个商品库存是1，此时两个线程都查出的是1，接着都去更新库存，导致库存为-1出现超卖。由于采用的是乐观锁，在数据库层面没有加锁，所以无法通过加锁解决。不过可以利用Redis单线程特性，当查询到库存大于0时，继续进行减库存，然后**返回**减完以后的库存值，如果库存小于0就说明操作失败。
+需要处理缓存和数据库双写时的数据一致性问题  
+##### 方案一：先删除缓存，然后更新数据库 ×
+可能**长时间**出现脏读：当线程t1先删除缓存以后，此时线程t2从缓存中读取库存，因为t1已经删除缓存了，t2会从数据库中重新读到缓存中，当t1更新数据库以后，缓存和数据库中的库存不一致。缓存中存的**一直**是脏数据
+
+##### 方案二：先更新数据库，然后删除缓存(Cache Aside Pattern) √
+可能**短时间**出现脏读：当t1更新数据库以后，此时t2读取缓存中的数据，读到的是脏数据，然后t1删除缓存。后续读到的都是最新的数据。  
+小概率**长时间**出现脏读：当t1读取缓存时，由于之前某个线程已经删除了缓存，所以t1需要到数据库中读取，此时t2更新数据库，更新完以后，t1读到的就成了脏数据，当t2 “删除”缓存以后，t1将脏数据加到缓存中。导致缓存中存的**一直**是脏数据。
+> 小概率是因为写操作通常是比较慢的，并且这种情况出现的前提是读操作需要在写操作之前开始（写操作需要加锁），所以一般写操作会在读操作完成之后。当t1将脏数据读到缓存中以后，当t2完成写操作，会重新删除掉缓存。
+
+具体实现：  
 ```Java
+private void updateStock(Product product) throws SecKillException {
+    Jedis jedis = jedisContainer.get();
+    int productId = product.getId();
+    String cacheProductStockKey = "product:" + productId + ":stock";
+    // 更新缓存库存
+    long currentCacheStock = Long.valueOf(jedis.get(cacheProductStockKey));
+    // 防止并发修改导致超卖
+    if (currentCacheStock <= 0) {
+        throw new SecKillException(StatusEnum.LOW_STOCKS);
+    } else {
+        // 更新数据库商品库存
+        int count = productDao.updateStockByOptimisticLock(product);
+        if (count != 1) {
+            // 更新数据库失败
+            jedis.incr(cacheProductStockKey);
+            throw new SecKillException(StatusEnum.LOW_STOCKS);
+        } else {
+            // 更新数据库成功，删除缓存
+            jedis.del(cacheProductStockKey);
+        }
+    }
+}
+```
+
+##### 方案三：先更新数据库，然后更新缓存
+会出现并发修改缓存错误：比如t1更新数据库库存之前，**假如**原库存为`2`,t1需要将更新后的库存`1`回写到缓存中。当t2也更新库存从`1`更新到`0`，也需要回写到缓存。此时如果t2先更新  
+个人看法：用Redis做缓存的话，可以更新缓存。因为Redis是单线程操作，通过一些原子指令可以保证线程安全(`decr(...)`)，而其它的缓存比如memcache支持多线程，会存在并发修改错误
+
+##### 方案四：先更新缓存，然后更新数据库
+同方案三  
+具体实现：
+```java
 private void updateStock(Product product) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     int productId = product.getId();

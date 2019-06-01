@@ -181,18 +181,20 @@ public class SecKillServiceImpl implements SecKillService {
         int productId = product.getId();
         String cacheProductStockKey = "product:" + productId + ":stock";
         // 更新缓存库存
-        long currentCacheStock = jedis.decr(cacheProductStockKey);
+        long currentCacheStock = Long.valueOf(jedis.get(cacheProductStockKey));
         // 防止并发修改导致超卖
-        if (currentCacheStock < 0) {
-            jedis.set(cacheProductStockKey, String.valueOf(0));
+        if (currentCacheStock <= 0) {
             throw new SecKillException(StatusEnum.LOW_STOCKS);
         } else {
             // 更新数据库商品库存
             int count = productDao.updateStockByOptimisticLock(product);
             if (count != 1) {
-                // 更新数据库商品库存失败，回滚之前修改的缓存库存
+                // 更新数据库失败
                 jedis.incr(cacheProductStockKey);
                 throw new SecKillException(StatusEnum.LOW_STOCKS);
+            } else {
+                // 更新数据库成功，删除缓存
+                jedis.del(cacheProductStockKey);
             }
         }
     }
