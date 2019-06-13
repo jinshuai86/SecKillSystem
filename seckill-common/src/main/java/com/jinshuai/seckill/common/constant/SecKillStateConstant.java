@@ -43,4 +43,9 @@ public class SecKillStateConstant {
      */
     public static final String FREQUENCY_REQUEST = "-5";
 
+    /**
+     * CAS更新数据库库存失败，前台可以提示用户系统太忙，稍后再试
+     */
+    public static final String SYSTEM_BUSY = "-6";
+
 }

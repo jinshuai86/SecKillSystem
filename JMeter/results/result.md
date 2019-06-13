@@ -23,6 +23,14 @@
 ## 乐观锁&&缓存结果  
 ![乐观锁&&缓存](imgs/optiCacheX2.png)  
 
-## TODO 50000并发量测试 
-  > 测试脚本环境：E3-1230 v5 @ 3.40GHz X4  8G RAM  
-  > 项目运行环境：Intel Core 2 Quad Q8400 2.66GHz X1 4G RAM
+## 1000000并发量测试 
+  > 测试脚本环境：Intel(R) Core(TM) i7-6800K CPU @ 3.40GHz X4  16G RAM  
+  > 项目运行环境：Intel(R) Xeon(R) CPU E3-1230 v5 @ 3.40GHz X4 8G RAM
+  
+## 问题
+### 1.MySQL异常
+`ERROR 1040 (HY000): Too many connections`，获取不到可用的连接，远程登录不上MySQL。原因是MySQL最大连接数量有限制，默认是151。
+解决办法是修改最大连接数量
+
+### 2.出现大量CLOSE_WAIT状态连接
+

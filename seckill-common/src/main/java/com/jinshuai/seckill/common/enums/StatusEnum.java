@@ -41,6 +41,11 @@ public enum StatusEnum {
      * 频繁请求
      */
     FREQUENCY_REQUEST("频繁请求", SecKillStateConstant.FREQUENCY_REQUEST),
+
+    /**
+     * 乐观锁更新数据库失败，系统太忙
+     * */
+    SYSTEM_BUSY("系统太忙", SecKillStateConstant.SYSTEM_BUSY),
     ;
 
     private String status;

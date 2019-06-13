@@ -7,23 +7,23 @@ package com.jinshuai.seckill.common.web;
  */
 public class SecKillRequest {
 
-    private Integer userId;
+    private Long userId;
 
-    private Integer productId;
+    private Long productId;
 
-    public Integer getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(Integer userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 
-    public Integer getProductId() {
+    public Long getProductId() {
         return productId;
     }
 
-    public void setProductId(Integer productId) {
+    public void setProductId(Long productId) {
         this.productId = productId;
     }
 

@@ -15,7 +15,7 @@ public class Product {
     /**
      * 产品编号
      */
-    private int id;
+    private long id;
 
     /**
      * 产品名
@@ -30,11 +30,11 @@ public class Product {
     /**
      * 库存
      */
-    private Integer stock;
+    private long stock;
 
     /**
      * 版本号
      */
-    private Integer version;
+    private long version;
 
 }

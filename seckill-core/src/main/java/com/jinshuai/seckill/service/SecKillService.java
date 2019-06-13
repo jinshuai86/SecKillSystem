@@ -10,11 +10,11 @@ public interface SecKillService {
     /**
      * 乐观锁
      */
-    StatusEnum updateStockByOptimisticLock(Map<String, Integer> parameter) throws SecKillException;
+    StatusEnum updateStockByOptimisticLock(Map<String, Long> parameter) throws SecKillException;
 
     /**
      * 悲观锁
      */
-    StatusEnum updateStockByPessimisticLock(Map<String, Integer> parameter);
+    StatusEnum updateStockByPessimisticLock(Map<String, Long> parameter);
 
 }

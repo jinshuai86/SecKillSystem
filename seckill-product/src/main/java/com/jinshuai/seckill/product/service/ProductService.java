@@ -1,6 +1,7 @@
 package com.jinshuai.seckill.product.service;
 
 import com.jinshuai.seckill.product.entity.Product;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -14,7 +15,13 @@ public interface ProductService {
     /**
      * 获取商品详细信息
      */
-    Product getProductById(Integer productId);
+    Product getProductById(long productId);
+
+    /**
+     * 获取商品库存
+     * */
+    @Select("SELECT stock FROM product WHERE id = #{id}")
+    long getStockById(long productId);
 
     /***
      * 获取所有商品

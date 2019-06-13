@@ -19,13 +19,19 @@ public interface ProductDao {
      * 获取商品快照
      */
     @Select("SELECT * FROM product WHERE id = #{id}")
-    Product getProductById(int productId);
+    Product getProductById(long productId);
+
+    /**
+     * 获取商品库存
+     * */
+    @Select("SELECT stock FROM product WHERE id = #{id}")
+    long getStockById(long productId);
 
     /**
      * 获取商品并加锁
      */
     @Select("SELECT * FROM product WHERE id = #{id} FOR UPDATE")
-    Product getAndLockProductById(int productId);
+    Product getAndLockProductById(long productId);
 
     /***
      * 获取所有商品

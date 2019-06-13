@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisSentinelPool;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -91,9 +92,12 @@ public class SeckillApplicationTests {
     @Autowired
     private JedisPool jedisPool;
 
+    @Autowired
+    private JedisSentinelPool jedisSentinelPool;
+
     @Test
     public void testJedis() {
-        Jedis jedis = jedisPool.getResource();
+        Jedis jedis = jedisSentinelPool.getResource();
 //		String s = jedis.set("name","靳帅");
 //		System.out.println(s);
 //		s = jedis.set("name","靳帅");
@@ -112,13 +116,14 @@ public class SeckillApplicationTests {
 //			jedis.incr(itemKey);
 //		}
 
-        for (int i = 0; i < 10; i++) {
-            System.out.println(jedis.sismember("orderUUID_Test", String.valueOf(i)));
-        }
-        for (int i = 0; i < 10; i++) {
-            jedis.sadd("orderUUID_Test", String.valueOf(i));
-        }
-
+//        for (int i = 0; i < 10; i++) {
+//            System.out.println(jedis.sismember("orderUUID_Test", String.valueOf(i)));
+//        }
+//        for (int i = 0; i < 10; i++) {
+//            jedis.sadd("orderUUID_Test", String.valueOf(i));
+//        }
+        Product product = productDao.getProductById(1);
+        jedis.set("product:1", JSON.toJSONString(product));
 
     }
 
@@ -135,6 +140,14 @@ public class SeckillApplicationTests {
         String jsonStr = JSON.toJSONString(order);
         System.out.println(jsonStr);
         System.out.println(JSON.parseObject(jsonStr, Order.class));
+    }
+
+    @Test
+    public void testProductDao() {
+        Product product = productDao.getProductById(0);
+        System.out.println(product);
+        productDao.updateStockByOptimisticLock(product);
+        System.out.println(productDao.getProductById(0));
     }
 
 }

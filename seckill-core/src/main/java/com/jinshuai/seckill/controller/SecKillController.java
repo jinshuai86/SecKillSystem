@@ -39,7 +39,7 @@ public class SecKillController {
             throw new SecKillException(statusEnum);
         } else {
             // 封装请求参数
-            Map<String, Integer> requestParameter = new HashMap<>();
+            Map<String, Long> requestParameter = new HashMap<>();
             requestParameter.put("productId", secKillRequest.getProductId());
             requestParameter.put("userId", secKillRequest.getUserId());
             // 更新库存
@@ -64,7 +64,7 @@ public class SecKillController {
             log.error("请求参数不完整[{}]", secKillRequest.toString());
             return secKillResponse;
         } else {
-            Map<String, Integer> parameterMap = new HashMap<>();
+            Map<String, Long> parameterMap = new HashMap<>();
             parameterMap.put("userId", secKillRequest.getUserId());
             parameterMap.put("productId", secKillRequest.getProductId());
 

@@ -26,9 +26,7 @@ public class SecKillExceptionHandler {
     public SecKillResponse SecKillExceptionHandle(SecKillException e) {
         String status = e.getStatusEnum().getStatus();
         String statusCode = e.getStatusEnum().getStatusCode();
-        SecKillResponse secKillResponse = new SecKillResponse(status, statusCode);
-        log.warn(status);
-        return secKillResponse;
+        return new SecKillResponse(status, statusCode);
     }
 
     /**

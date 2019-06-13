@@ -26,7 +26,13 @@ public class ProductServiceImpl implements ProductService {
 
     @TargetDataSource(DataSourceConstant.SLAVE)
     @Override
-    public Product getProductById(Integer productId) {
+    public long getStockById(long productId) {
+        return productDao.getStockById(productId);
+    }
+
+    @TargetDataSource(DataSourceConstant.SLAVE)
+    @Override
+    public Product getProductById(long productId) {
         return productDao.getProductById(productId);
     }
 

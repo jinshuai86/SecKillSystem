@@ -42,7 +42,7 @@ public class UserServiceImpl implements UserService {
 
     @TargetDataSource(DataSourceConstant.SLAVE)
     @Override
-    public User getUserById(int userId) {
+    public User getUserById(long userId) {
         return userDao.getUserById(userId);
     }
 

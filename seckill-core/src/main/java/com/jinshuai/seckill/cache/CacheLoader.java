@@ -1,5 +1,6 @@
 package com.jinshuai.seckill.cache;
 
+import com.alibaba.fastjson.JSON;
 import com.jinshuai.seckill.product.dao.ProductDao;
 import com.jinshuai.seckill.product.entity.Product;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class CacheLoader {
      */
     @PostConstruct
     private void initCache() {
+
         try (Jedis jedis = jedisPool.getResource()) {
             // 清除旧的缓存
             jedis.flushDB();
@@ -39,8 +41,8 @@ public class CacheLoader {
             Pipeline pipeline = jedis.pipelined();
             List<Product> productList = productDao.getAllProducts();
             productList.forEach(product -> {
-                pipeline.set("product:" + product.getId() + ":stock", String.valueOf(product.getStock()));
-                pipeline.expire("product:" + product.getId()  + ":stock", (int)(Math.random() * 120000));
+                pipeline.set("product:" + product.getId(), JSON.toJSONString(product));
+                pipeline.expire("product:" + product.getId(), (int)(Math.random() * 120000));
             });
             pipeline.sync();
             log.info("商品库存、版本号已加载到缓存中！！！");
