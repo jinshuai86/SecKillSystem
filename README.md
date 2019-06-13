@@ -15,11 +15,15 @@ SecKillSystem是一个基于SpringBoot的商品秒杀模块。
 #### 1 判断用户是否重复购买  
 将用户id和产品id组合起来放到Redis集合中，当用户请求打过来时，判断Redis集合中是否存在userId + ":" + productId，**注意:一定要加分隔符，因为如果不加分隔符，1 + 23 和 12 + 3效果一样。**
 ```Java
-private void checkRepeat(User user, Product product) throws SecKillException {
+/**
+ * 是否重复购买
+ *
+ */
+private void checkRepeat(long userId, long productId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 将用户Id和商品Id作为集合中唯一元素
-    String itemKey = user.getId() + ":" + product.getId();
-    if (jedis.sismember("item",itemKey)) {
+    String itemKey = userId + ":" + productId;
+    if (jedis.sismember("shopping:item", itemKey)) {
         throw new SecKillException(StatusEnum.REPEAT);
     }
 }
@@ -29,24 +33,23 @@ private void checkRepeat(User user, Product product) throws SecKillException {
 将用户标识作为Redis中的一个可以过期的String，每次用户请求会判断，该用户请求的次数是否已经达到上限
 ```Java
 /**
- * 限速：用户5秒内请求次数不能超过10次
- * TODO: 硬编码
+ * 限制用户请求频率
+ * 指定时间(requestDuration)内请求次数不能超过requestTimes次
  *
- * */
-private void limitRequestTimes(User user, Product product) throws SecKillException {
+ */
+private void limitRequestTimes(long userId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 每个用户的请求标识
-    String itemKey = "user:limit:"+user.getId();
+    String itemKey = "user:limit:" + userId;
     // 已经请求的次数
     String reqTimes = jedis.get(itemKey);
     // 第一次请求：设置初始值
     if (reqTimes == null) {
-        jedis.set(itemKey,"1");
-        jedis.expire(itemKey,5);
+        jedis.set(itemKey, "1");
+        jedis.expire(itemKey, requestDuration);
     }
     // 限速
-    else if (Integer.valueOf(reqTimes) >= 10) {
-        log.warn("用户[{}]频繁请求商品[{}]",user.getId(),product.getId());
+    else if (Long.valueOf(reqTimes) >= requestTimes) {
         throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
     }
     // 还没超过限制次数
@@ -59,56 +62,32 @@ private void limitRequestTimes(User user, Product product) throws SecKillExcepti
 查库存可能会出现缓存穿透，如果查询到缓存中不存在的值，就会去数据库中查找。如果频繁遇到这种情况，一直访问数据库，那缓存也就没多大效果了。解决办法是如果缓存中不存在请求的key，那缓存就缓存下这个key，然后向上抛异常。
 ```Java
 /**
- * 1. 处理缓存穿透 
- * 2. 检查库存
- * */
-private void checkStock(Product product) throws SecKillException {
+ * 检查缓存库存、处理缓存穿透
+ *
+ */
+private void checkStock(long productId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
-    int productId = product.getId();
     String cacheProductKey = "product:" + productId + ":stock";
-    String stockStr = jedis.get(cacheProductKey);
-    // 缓存未命中
-    if (stockStr == null) {
-        log.warn("商品编号: [{}] 未在缓存命中",productId);
-        // 在存储层去查找
-        product = secKillDao.getProductById(productId);
-        // 存储层不存在此商品
-        if (product == null) {
-            log.warn("商品编号: [{}] 未在存储层命中,已添加冗余数据到缓存",productId);
-            // 通过缓存没意义的数据防止缓存穿透
-            jedis.set(cacheProductKey,"penetration");
-            throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
-        }
-        // 存储层存在此商品，添加到缓存：先判断再修改会导致并发修改不安全，通过加锁避免
-        else {
-            synchronized (this) {
-                // 如果没有在缓存中设置此商品，再设置
-                if (jedis.get(cacheProductKey) == null) {
-                    jedis.set(cacheProductKey,String.valueOf(product.getStock()));
-                }
-                // 检查此商品在缓存里的库存
-                checkCacheStock(productId);
-            }
-        }
+    String cacheProductStock = jedis.get(cacheProductKey);
+    // 命中无意义数据
+    if ("penetration".equals(cacheProductStock)) {
+        throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
     }
-    // 缓存命中
-    else {
-        // 命中无意义数据
-        if ("penetration".equals(stockStr)) {
+    // 缓存未命中
+    if (cacheProductStock == null) {
+        Product product = productDao.getProductById(productId);
+        // 数据库不存在此商品
+        if (product == null) {
+            // 通过缓存没意义的数据防止缓存穿透
+            jedis.set(cacheProductKey, "penetration");
             throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
         } else {
-            // 检查此商品在缓存里的库存
-            checkCacheStock(productId);
+            cacheProductStock = String.valueOf(product.getStock());
+            jedis.set(cacheProductKey, cacheProductStock);
         }
     }
-}
-
-private void checkCacheStock(int productId) throws SecKillException {
-    Jedis jedis = jedisContainer.get();
-    String cacheProductKey = "product:" + productId + ":stock";
-    String stockStr = jedis.get(cacheProductKey);
-    int cacheStock = Integer.valueOf(stockStr);
-    if (cacheStock == 0) {
+    // 库存不足
+    if (Long.valueOf(cacheProductStock) == 0) {
         throw new SecKillException(StatusEnum.LOW_STOCKS);
     }
 }
@@ -126,24 +105,21 @@ private void checkCacheStock(int productId) throws SecKillException {
 
 具体实现：  
 ```Java
+/**
+ * 扣库存、删除缓存
+ *
+ */
 private void updateStock(Product product) throws SecKillException {
     Jedis jedis = jedisContainer.get();
-    int productId = product.getId();
-    String cacheProductStockKey = "product:" + productId + ":stock";
-    // 更新缓存库存
-    long currentCacheStock = Long.valueOf(jedis.get(cacheProductStockKey));
-    // 防止并发修改导致超卖
-    if (currentCacheStock <= 0) {
+    String cacheProductStockKey = "product:" + product.getId() + ":stock";
+    // 更新数据库商品库
+    if (product.getStock() == 0) {
         throw new SecKillException(StatusEnum.LOW_STOCKS);
     } else {
-        // 更新数据库商品库存
         int count = productDao.updateStockByOptimisticLock(product);
         if (count != 1) {
-            // 更新数据库失败
-            jedis.incr(cacheProductStockKey);
-            throw new SecKillException(StatusEnum.LOW_STOCKS);
+            throw new SecKillException(StatusEnum.SYSTEM_BUSY);
         } else {
-            // 更新数据库成功，删除缓存
             jedis.del(cacheProductStockKey);
         }
     }
@@ -183,37 +159,39 @@ private void updateStock(Product product) throws SecKillException {
 对每一个订单加上唯一标识`UUID`，消费者消费时根据订单的唯一标识`UUID`查询是否已经消费了这个订单。[RocketMQ不建议用MessageID，因为MessageID可能会冲突(重复)。](https://help.aliyun.com/document_detail/44397.html?spm=a2c4g.11174283.6.651.3102449czbJGKh)
 ```Java
 /**
- * 订单入队列，等待消费
- * 
- * */
-private void createOrder(Product product, User user) {
+ * 订单入队列
+ *
+ */
+private void createOrder(Product product, long userId) throws SecKillException {
+    User user = userDao.getUserById(userId);
+    if (user == null) {
+        throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
+    }
     Jedis jedis = jedisContainer.get();
-    DateTime dateTime = new DateTime();
-    Timestamp ts = new Timestamp(dateTime.getMillis());
-    Order order = new Order(user,product,ts, UUID.randomUUID().toString());
-    // 放到消息队列 TODO 可以提示用户正在排队中... ...
+    Timestamp ts = new Timestamp(System.currentTimeMillis());
+    Order order = new Order(user, product, ts, UUID.randomUUID().toString());
     orderProducer.product(order);
-    // 在Redis中缓存购买记录，防止重复购买
+    // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
     String itemKey = user.getId() + ":" + product.getId();
-    jedis.sadd("item",itemKey);
+    jedis.sadd("shopping:item", itemKey);
 }
 ```
 #### 6 消费者消费订单，最终保存到数据库
 消费时先根据这条订单的UUID在Redis中查找，判断是否已经消费过这条订单，如果没有的话，将这个订单的UUID添加到Redis集合中。将订单持久到数据库中
 ```Java
 public void consume(Order order) {
-    try (Jedis jedis = jedisPool.getResource()) {
+    try (Jedis jedis = jedisSentinelPool.getResource()) {
         // 已经消费过此条消息
-        if (jedis.sismember("orderUUID",order.getOrderUUID())) {
-            log.warn("消息[{}]已经被消费",order);
+        if (jedis.sismember("orderUUID", order.getOrderUUID())) {
+            log.error("消息[{}]已经被消费", order);
             return;
         }
         // 添加这条订单的UUID到Redis中
         jedis.sadd("orderUUID", order.getOrderUUID());
-        secKillDao.createOrder(order);
-        log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
+        orderDao.createOrder(order);
+//            log.info("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
     } catch (Exception e) {
-        log.error("订单[{}]出队异常",order,e);
+        log.error("订单[{}]出队异常", order, e);
     }
 }
 ```
