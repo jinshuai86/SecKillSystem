@@ -5,10 +5,10 @@
 
     <groupId>com.jinshuai.seckill.core</groupId>
     <artifactId>seckill-core</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
-    <name>seckill core</name>
+    <name>seckill-core</name>
     <description>seckill core</description>
 
     <parent>

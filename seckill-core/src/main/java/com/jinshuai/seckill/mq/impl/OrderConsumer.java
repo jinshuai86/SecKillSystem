@@ -43,13 +43,13 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
         try (Jedis jedis = jedisSentinelPool.getResource()) {
             // 已经消费过此条消息
             if (jedis.sismember("orderUUID", order.getOrderUUID())) {
-                log.info("消息[{}]已经被消费", order);
+                log.error("消息[{}]已经被消费", order);
                 return;
             }
             // 添加这条订单的UUID到Redis中
             jedis.sadd("orderUUID", order.getOrderUUID());
             orderDao.createOrder(order);
-            log.info("订单出队成功，当前创建订单总量[{}]", orderNums.addAndGet(1));
+//            log.info("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
         } catch (Exception e) {
             log.error("订单[{}]出队异常", order, e);
         }

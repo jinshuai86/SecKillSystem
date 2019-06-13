@@ -11,7 +11,7 @@
     <groupId>com.jinshuai.seckill.account</groupId>
     <artifactId>seckill-account</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>seckill account</name>
+    <name>seckill-account</name>
     <description>account module</description>
 
     <properties>

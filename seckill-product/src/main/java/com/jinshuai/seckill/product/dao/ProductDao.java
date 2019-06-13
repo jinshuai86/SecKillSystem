@@ -25,7 +25,7 @@ public interface ProductDao {
      * 获取商品库存
      * */
     @Select("SELECT stock FROM product WHERE id = #{id}")
-    long getStockById(long productId);
+    Long getStockById(long productId);
 
     /**
      * 获取商品并加锁

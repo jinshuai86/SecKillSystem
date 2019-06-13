@@ -41,7 +41,7 @@ public class CacheLoader {
             Pipeline pipeline = jedis.pipelined();
             List<Product> productList = productDao.getAllProducts();
             productList.forEach(product -> {
-                pipeline.set("product:" + product.getId(), JSON.toJSONString(product));
+                pipeline.set("product:" + product.getId() + ":stock", String.valueOf(product.getStock()));
                 pipeline.expire("product:" + product.getId(), (int)(Math.random() * 120000));
             });
             pipeline.sync();

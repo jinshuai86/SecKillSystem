@@ -1,6 +1,5 @@
 package com.jinshuai.seckill.service.impl;
 
-import com.alibaba.fastjson.JSON;
 import com.jinshuai.seckill.account.dao.UserDao;
 import com.jinshuai.seckill.account.entity.User;
 import com.jinshuai.seckill.common.enums.StatusEnum;
@@ -14,6 +13,7 @@ import com.jinshuai.seckill.service.SecKillService;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import redis.clients.jedis.Jedis;
@@ -50,29 +50,40 @@ public class SecKillServiceImpl implements SecKillService {
     @Autowired
     private Producer<Order> orderProducer;
 
+    @Value("${request.duration}")
+    private int requestDuration;
+
+    @Value("${request.times}")
+    private long requestTimes;
+
     /**
-     * 乐观锁：加缓存、加消息队列
+     * 乐观锁: 缓存、消息队列
+     *
      */
     @Override
     public StatusEnum updateStockByOptimisticLock(Map<String, Long> parameter) throws SecKillException {
         StatusEnum status = StatusEnum.SUCCESS;
         long productId = parameter.get("productId");
         long userId = parameter.get("userId");
-        // 检查 -> 更新为非原子操作：可以在更新缓存库存以后检查缓存库存，如果是负数则更新失败，并将缓存库存恢复为0
         try (Jedis jedis = jedisSentinelPool.getResource()) {
             jedisContainer.set(jedis);
-            // 查看是否重复购买
+            // 是否重复购买
             checkRepeat(userId, productId);
-            // 限制请求次数
+            // 限制请求频率
             limitRequestTimes(userId);
             /*
             * 检查库存
-            *     - 库存充足:更新数据库库存
+            *     - 库存充足:扣库存
             *         - 更新成功:创建订单到队列
             *         - 更新失败:抛出系统太忙异常，前台可以提示用户稍后再试
             *     - 库存不足:抛出库存不足异常，返回对应JSON
             * */
-            checkStock(productId, userId);
+            checkStock(productId);
+            // 扣库存
+            Product product = productDao.getProductById(productId);
+            updateStock(product);
+            // 创建订单
+            createOrder(product, userId);
         } finally {
             jedisContainer.remove();
         }
@@ -80,7 +91,7 @@ public class SecKillServiceImpl implements SecKillService {
     }
 
     /**
-     * 查看是否重复购买
+     * 是否重复购买
      *
      */
     private void checkRepeat(long userId, long productId) throws SecKillException {
@@ -93,8 +104,8 @@ public class SecKillServiceImpl implements SecKillService {
     }
 
     /**
-     * 限速：用户12秒内请求次数不能超过2次
-     * TODO: 硬编码
+     * 限制用户请求频率
+     * 指定时间(requestDuration)内请求次数不能超过requestTimes次
      *
      */
     private void limitRequestTimes(long userId) throws SecKillException {
@@ -106,11 +117,10 @@ public class SecKillServiceImpl implements SecKillService {
         // 第一次请求：设置初始值
         if (reqTimes == null) {
             jedis.set(itemKey, "1");
-            jedis.expire(itemKey, 5);
+            jedis.expire(itemKey, requestDuration);
         }
         // 限速
-        else if (Long.valueOf(reqTimes) >= 10) {
-            log.info("用户[{}]频繁请求", userId);
+        else if (Long.valueOf(reqTimes) >= requestTimes) {
             throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
         }
         // 还没超过限制次数
@@ -120,81 +130,70 @@ public class SecKillServiceImpl implements SecKillService {
     }
 
     /**
-     * 1. 检查库存
-     * 2. 处理缓存穿透
+     * 检查缓存库存、处理缓存穿透
      *
      */
-    private void checkStock(long productId, long userId) throws SecKillException {
+    private void checkStock(long productId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
-        Product product;
-        String cacheProductKey = "product:" + productId;
-        String productJSON = jedis.get(cacheProductKey);
+        String cacheProductKey = "product:" + productId + ":stock";
+        String cacheProductStock = jedis.get(cacheProductKey);
         // 命中无意义数据
-        if ("penetration".equals(productJSON)) {
+        if ("penetration".equals(cacheProductStock)) {
             throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
         }
-
         // 缓存未命中
-        if (productJSON == null) {
-            log.info("商品编号: [{}] 未在缓存命中", productId);
-            product = productDao.getProductById(productId);
+        if (cacheProductStock == null) {
+            Product product = productDao.getProductById(productId);
             // 数据库不存在此商品
             if (product == null) {
-                log.info("商品编号: [{}] 未在数据库命中,已添加冗余数据到缓存", productId);
                 // 通过缓存没意义的数据防止缓存穿透
                 jedis.set(cacheProductKey, "penetration");
                 throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
             } else {
-                jedis.set(cacheProductKey, JSON.toJSONString(product));
-                jedis.expire(cacheProductKey,2);
+                cacheProductStock = String.valueOf(product.getStock());
+                jedis.set(cacheProductKey, cacheProductStock);
             }
-        } else {
-            log.info("商品编号: [{}] 命中缓存", productId);
-            product = JSON.parseObject(productJSON, Product.class);
         }
-
         // 库存不足
-        if (product.getStock() == 0) {
+        if (Long.valueOf(cacheProductStock) == 0) {
             throw new SecKillException(StatusEnum.LOW_STOCKS);
         }
-
-        // 更新库存
-        updateStock(product);
-
-        // 创建订单
-        User user = userDao.getUserById(userId);
-        createOrder(product, user);
     }
 
     /**
-     * 1.更新数据库库存
-     * 2.删除缓存
+     * 扣库存、删除缓存
      *
      */
     private void updateStock(Product product) throws SecKillException {
         Jedis jedis = jedisContainer.get();
-        String cacheProductStockKey = "product:" + product.getId();
-        // 更新数据库商品库存
-        int count = productDao.updateStockByOptimisticLock(product);
-        if (count != 1) {
-            log.info("乐观锁更新商品编号: [{}] 失败", product.getId());
-            throw new SecKillException(StatusEnum.SYSTEM_BUSY);
+        String cacheProductStockKey = "product:" + product.getId() + ":stock";
+        // 更新数据库商品库
+        if (product.getStock() == 0) {
+            throw new SecKillException(StatusEnum.LOW_STOCKS);
         } else {
-            jedis.del(cacheProductStockKey);
+            int count = productDao.updateStockByOptimisticLock(product);
+            if (count != 1) {
+                throw new SecKillException(StatusEnum.SYSTEM_BUSY);
+            } else {
+                jedis.del(cacheProductStockKey);
+            }
         }
     }
 
     /**
-     * 订单入队列，等待消费
+     * 订单入队列
      *
      */
-    private void createOrder(Product product, User user) {
+    private void createOrder(Product product, long userId) throws SecKillException {
+        User user = userDao.getUserById(userId);
+        if (user == null) {
+            throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
+        }
         Jedis jedis = jedisContainer.get();
-        DateTime dateTime = new DateTime();
-        Timestamp ts = new Timestamp(dateTime.getMillis());
+        Timestamp ts = new Timestamp(System.currentTimeMillis());
         Order order = new Order(user, product, ts, UUID.randomUUID().toString());
         orderProducer.product(order);
-        // 在Redis中缓存购买记录，防止重复购买
+        // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
         String itemKey = user.getId() + ":" + product.getId();
         jedis.sadd("shopping:item", itemKey);
     }
@@ -221,7 +220,7 @@ public class SecKillServiceImpl implements SecKillService {
                     status = StatusEnum.SYSTEM_EXCEPTION;
                 } else {
                     // 创建订单
-                    createOrder(product, user);
+                    createOrder(product, userId);
                 }
             } else { // 库存不足
                 status = StatusEnum.LOW_STOCKS;

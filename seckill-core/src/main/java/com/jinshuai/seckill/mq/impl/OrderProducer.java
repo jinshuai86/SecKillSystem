@@ -19,12 +19,10 @@ public class OrderProducer implements Producer<Order> {
     @Autowired
     private RocketMQTemplate rocketMQTemplate;
 
-
     @Override
     public void product(Order order) {
         rocketMQTemplate.setMessageQueueSelector((list, message, o) -> list.get(order.getId() % list.size()));
         rocketMQTemplate.convertAndSend("orderTopic", order);
-        log.info("订单入队成功[{}]",order);
     }
 
 }
