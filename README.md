@@ -215,6 +215,7 @@ public void consume(Order order) {
 - [x] 通过MyCat代理实现读写分离
 
 ## TODO
+- [ ] 存在大量硬编码
 - [ ] 分布式集群(比如MySQL、Redis、~~SpringBoot、Nginx进行负载均衡~~)
 - [ ] 解决MySQL主从复制带来的数据不一致性问题
 - [ ] 每次只放指定数量的请求到消息队列，等处理完毕再重新拉请求入队列。
