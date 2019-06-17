@@ -194,6 +194,7 @@ public class SecKillServiceImpl implements SecKillService {
         Order order = new Order(user, product, ts, UUID.randomUUID().toString());
         orderProducer.product(order);
         // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
+        // TODO 剥离到事务外
         String itemKey = user.getId() + ":" + product.getId();
         jedis.sadd("shopping:item", itemKey);
     }
