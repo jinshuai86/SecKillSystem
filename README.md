@@ -7,6 +7,8 @@ SecKillSystem是一个基于SpringBoot的商品秒杀模块。
 - 缓存、应用、数据库做集群，做负载均衡;消息异步处理
 - 前台可以通过`js`对正常用户的操作做一些限制、用`CDN`和用户浏览器缓存一些静态资源
 
+### [压力测试结果👉](./Jmeter/results/result.md)
+
 ### 整体架构
 ![architecture](./architecture.svg)
 

@@ -50,7 +50,7 @@
 - 查看TCP连接: `netstat -nat | awk 'FNR>2{print $NF}' | sort | uniq -c`处于CLOSE_WAIT状态的连接接近10000。  
 ![CLOSE_WAIT连接数量](imgs/close_wait.png)  
 
-- 查看线程栈: `jstack pid > seckill.log` 大量线程处于 **等待获取数据库连接池连接**
+- 查看线程栈: `jstack pid > seckill.log` 大量线程处于 **等待获取数据库连接池连接**(连接池用的Druid)
 ![获取Druid连接](imgs/druid.png)
 
 - 查看数据库连接池配置：Druid开了HTTP服务,可视化展示配置参数`ip:port/druid` 默认最大可用数量为8...
