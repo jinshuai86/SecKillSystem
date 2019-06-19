@@ -25,7 +25,7 @@ private void checkRepeat(long userId, long productId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 将用户Id和商品Id作为集合中唯一元素
     String itemKey = userId + ":" + productId;
-    if (jedis.sismember("shopping:item", itemKey)) {
+    if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
         throw new SecKillException(StatusEnum.REPEAT);
     }
 }
@@ -42,7 +42,7 @@ private void checkRepeat(long userId, long productId) throws SecKillException {
 private void limitRequestTimes(long userId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 每个用户的请求标识
-    String itemKey = "user:limit:" + userId;
+    String itemKey = USER_LIMIT + userId;
     // 已经请求的次数
     String reqTimes = jedis.get(itemKey);
     // 第一次请求：设置初始值
@@ -72,7 +72,7 @@ private void checkStock(long productId) throws SecKillException {
     String cacheProductKey = "product:" + productId + ":stock";
     String cacheProductStock = jedis.get(cacheProductKey);
     // 命中无意义数据
-    if ("penetration".equals(cacheProductStock)) {
+    if (PENETRATION.equals(cacheProductStock)) {
         throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
     }
     // 缓存未命中
@@ -81,7 +81,7 @@ private void checkStock(long productId) throws SecKillException {
         // 数据库不存在此商品
         if (product == null) {
             // 通过缓存没意义的数据防止缓存穿透
-            jedis.set(cacheProductKey, "penetration");
+            jedis.set(cacheProductKey, PENETRATION);
             throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
         } else {
             cacheProductStock = String.valueOf(product.getStock());

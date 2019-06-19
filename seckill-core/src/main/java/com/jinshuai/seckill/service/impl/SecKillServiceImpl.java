@@ -57,6 +57,23 @@ public class SecKillServiceImpl implements SecKillService {
     private long requestTimes;
 
     /**
+     * 购买记录集合
+     *
+     * 每一条购买记录会被缓存，后续判重
+     * */
+    private static final String SHOPPING_ITEM = "shopping:item";
+
+    /**
+     * 应用限流
+     * */
+    private static final String USER_LIMIT = "user:limit:";
+
+    /**
+     * 防止缓存穿透
+     * */
+    private static final String PENETRATION = "penetration";
+
+    /**
      * 乐观锁: 缓存、消息队列
      *
      */
@@ -98,7 +115,7 @@ public class SecKillServiceImpl implements SecKillService {
         Jedis jedis = jedisContainer.get();
         // 将用户Id和商品Id作为集合中唯一元素
         String itemKey = userId + ":" + productId;
-        if (jedis.sismember("shopping:item", itemKey)) {
+        if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
             throw new SecKillException(StatusEnum.REPEAT);
         }
     }
@@ -111,7 +128,7 @@ public class SecKillServiceImpl implements SecKillService {
     private void limitRequestTimes(long userId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
         // 每个用户的请求标识
-        String itemKey = "user:limit:" + userId;
+        String itemKey = USER_LIMIT + userId;
         // 已经请求的次数
         String reqTimes = jedis.get(itemKey);
         // 第一次请求：设置初始值
@@ -138,7 +155,7 @@ public class SecKillServiceImpl implements SecKillService {
         String cacheProductKey = "product:" + productId + ":stock";
         String cacheProductStock = jedis.get(cacheProductKey);
         // 命中无意义数据
-        if ("penetration".equals(cacheProductStock)) {
+        if (PENETRATION.equals(cacheProductStock)) {
             throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
         }
         // 缓存未命中
@@ -147,7 +164,7 @@ public class SecKillServiceImpl implements SecKillService {
             // 数据库不存在此商品
             if (product == null) {
                 // 通过缓存没意义的数据防止缓存穿透
-                jedis.set(cacheProductKey, "penetration");
+                jedis.set(cacheProductKey, PENETRATION);
                 throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
             } else {
                 cacheProductStock = String.valueOf(product.getStock());
@@ -196,7 +213,7 @@ public class SecKillServiceImpl implements SecKillService {
         // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
         // TODO 剥离到事务外
         String itemKey = user.getId() + ":" + product.getId();
-        jedis.sadd("shopping:item", itemKey);
+        jedis.sadd(SHOPPING_ITEM, itemKey);
     }
 
     /**
