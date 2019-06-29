@@ -24,7 +24,7 @@ SecKillSystem是一个基于SpringBoot的商品秒杀模块。
 private void checkRepeat(long userId, long productId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 将用户Id和商品Id作为集合中唯一元素
-    String itemKey = userId + ":" + productId;
+    String itemKey = constructCacheKey(userId, productId);
     if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
         throw new SecKillException(StatusEnum.REPEAT);
     }
@@ -42,7 +42,7 @@ private void checkRepeat(long userId, long productId) throws SecKillException {
 private void limitRequestTimes(long userId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 每个用户的请求标识
-    String itemKey = USER_LIMIT + userId;
+    String itemKey = constructCacheKey(USER_LIMIT, userId);
     // 已经请求的次数
     String reqTimes = jedis.get(itemKey);
     // 第一次请求：设置初始值
@@ -69,7 +69,7 @@ private void limitRequestTimes(long userId) throws SecKillException {
  */
 private void checkStock(long productId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
-    String cacheProductKey = "product:" + productId + ":stock";
+    String cacheProductKey = constructCacheKey("product", productId, "stock");
     String cacheProductStock = jedis.get(cacheProductKey);
     // 命中无意义数据
     if (PENETRATION.equals(cacheProductStock)) {
@@ -86,6 +86,7 @@ private void checkStock(long productId) throws SecKillException {
         } else {
             cacheProductStock = String.valueOf(product.getStock());
             jedis.set(cacheProductKey, cacheProductStock);
+            jedis.expire(cacheProductKey, expire);
         }
     }
     // 库存不足
@@ -113,7 +114,7 @@ private void checkStock(long productId) throws SecKillException {
  */
 private void updateStock(Product product) throws SecKillException {
     Jedis jedis = jedisContainer.get();
-    String cacheProductStockKey = "product:" + product.getId() + ":stock";
+    String cacheProductStockKey = constructCacheKey("product", product.getId(), "stock");
     // 更新数据库商品库
     if (product.getStock() == 0) {
         throw new SecKillException(StatusEnum.LOW_STOCKS);
@@ -139,7 +140,7 @@ private void updateStock(Product product) throws SecKillException {
 private void updateStock(Product product) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     int productId = product.getId();
-    String cacheProductStockKey = "product:" + productId + ":stock";
+    String cacheProductStockKey = constructCacheKey("product", product.getId(), "stock");
     // 更新缓存库存
     long currentCacheStock = jedis.decr(cacheProductStockKey);
     // 防止并发修改导致超卖
@@ -174,8 +175,9 @@ private void createOrder(Product product, long userId) throws SecKillException {
     Order order = new Order(user, product, ts, UUID.randomUUID().toString());
     orderProducer.product(order);
     // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
-    String itemKey = user.getId() + ":" + product.getId();
-    jedis.sadd("shopping:item", itemKey);
+    // TODO 剥离到事务外
+    String itemKey = constructCacheKey(user.getId(), product.getId());
+    jedis.sadd(SHOPPING_ITEM, itemKey);
 }
 ```
 #### 6 消费者消费订单，最终保存到数据库

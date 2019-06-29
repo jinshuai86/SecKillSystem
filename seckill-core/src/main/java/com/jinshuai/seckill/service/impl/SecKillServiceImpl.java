@@ -50,23 +50,31 @@ public class SecKillServiceImpl implements SecKillService {
     @Autowired
     private Producer<Order> orderProducer;
 
-    @Value("${request.duration}")
+    @Value("${redis.request.duration}")
     private int requestDuration;
 
-    @Value("${request.times}")
+    @Value("${redis.request.times}")
     private long requestTimes;
+
+    @Value("${redis.expire}")
+    private int expire;
+
+    /**
+     * 分隔符
+     * */
+    private static final String DILEMMA = ":";
 
     /**
      * 购买记录集合
      *
      * 每一条购买记录会被缓存，后续判重
      * */
-    private static final String SHOPPING_ITEM = "shopping:item";
+    private static final String SHOPPING_ITEM = "shopping" + DILEMMA + "item";
 
     /**
      * 应用限流
      * */
-    private static final String USER_LIMIT = "user:limit:";
+    private static final String USER_LIMIT = "user" + DILEMMA + "limit";
 
     /**
      * 防止缓存穿透
@@ -114,7 +122,7 @@ public class SecKillServiceImpl implements SecKillService {
     private void checkRepeat(long userId, long productId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
         // 将用户Id和商品Id作为集合中唯一元素
-        String itemKey = userId + ":" + productId;
+        String itemKey = constructCacheKey(userId, productId);
         if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
             throw new SecKillException(StatusEnum.REPEAT);
         }
@@ -128,7 +136,7 @@ public class SecKillServiceImpl implements SecKillService {
     private void limitRequestTimes(long userId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
         // 每个用户的请求标识
-        String itemKey = USER_LIMIT + userId;
+        String itemKey = constructCacheKey(USER_LIMIT, userId);
         // 已经请求的次数
         String reqTimes = jedis.get(itemKey);
         // 第一次请求：设置初始值
@@ -152,7 +160,7 @@ public class SecKillServiceImpl implements SecKillService {
      */
     private void checkStock(long productId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
-        String cacheProductKey = "product:" + productId + ":stock";
+        String cacheProductKey = constructCacheKey("product", productId, "stock");
         String cacheProductStock = jedis.get(cacheProductKey);
         // 命中无意义数据
         if (PENETRATION.equals(cacheProductStock)) {
@@ -169,6 +177,7 @@ public class SecKillServiceImpl implements SecKillService {
             } else {
                 cacheProductStock = String.valueOf(product.getStock());
                 jedis.set(cacheProductKey, cacheProductStock);
+                jedis.expire(cacheProductKey, expire);
             }
         }
         // 库存不足
@@ -183,7 +192,7 @@ public class SecKillServiceImpl implements SecKillService {
      */
     private void updateStock(Product product) throws SecKillException {
         Jedis jedis = jedisContainer.get();
-        String cacheProductStockKey = "product:" + product.getId() + ":stock";
+        String cacheProductStockKey = constructCacheKey("product", product.getId(), "stock");
         // 更新数据库商品库
         if (product.getStock() == 0) {
             throw new SecKillException(StatusEnum.LOW_STOCKS);
@@ -212,8 +221,21 @@ public class SecKillServiceImpl implements SecKillService {
         orderProducer.product(order);
         // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
         // TODO 剥离到事务外
-        String itemKey = user.getId() + ":" + product.getId();
+        String itemKey = constructCacheKey(user.getId(), product.getId());
         jedis.sadd(SHOPPING_ITEM, itemKey);
+    }
+
+    /**
+     * 构造缓存Key
+     * */
+    private String constructCacheKey(Object ...args) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < args.length; i++) {
+            sb.append(args[i]);
+            if (i != args.length - 1)
+                sb.append(DILEMMA);
+        }
+        return sb.toString();
     }
 
     /**
