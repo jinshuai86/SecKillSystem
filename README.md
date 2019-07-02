@@ -184,16 +184,26 @@ private void createOrder(Product product, long userId) throws SecKillException {
 消费时先根据这条订单的UUID在Redis中查找，判断是否已经消费过这条订单，如果没有的话，将这个订单的UUID添加到Redis集合中。将订单持久到数据库中
 ```Java
 public void consume(Order order) {
+
     try (Jedis jedis = jedisSentinelPool.getResource()) {
+        // 获取分布式锁
+        String requestId = UUID.randomUUID().toString();
+        RedisUtil.tryGetDistributedLock(jedis, LOCK_KEY, requestId, 500);
+
         // 已经消费过此条消息
-        if (jedis.sismember("orderUUID", order.getOrderUUID())) {
+        String orderIdStr = String.valueOf(order.getOrderId());
+        if (jedis.sismember("order:message:id", orderIdStr)) {
             log.error("消息[{}]已经被消费", order);
             return;
         }
-        // 添加这条订单的UUID到Redis中
-        jedis.sadd("orderUUID", order.getOrderUUID());
+        // 添加这条订单的唯一业务标识到Redis中
+        jedis.sadd("order:message:id", orderIdStr);
+
+        // 释放【当前客户端】持有的锁
+        RedisUtil.releaseDistributedLock(jedis, LOCK_KEY, requestId);
+
         orderDao.createOrder(order);
-//            log.info("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
+        log.info("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
     } catch (Exception e) {
         log.error("订单[{}]出队异常", order, e);
     }
