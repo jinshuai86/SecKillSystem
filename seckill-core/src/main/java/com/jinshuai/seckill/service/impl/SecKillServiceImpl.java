@@ -4,6 +4,7 @@ import com.jinshuai.seckill.account.dao.UserDao;
 import com.jinshuai.seckill.account.entity.User;
 import com.jinshuai.seckill.common.enums.StatusEnum;
 import com.jinshuai.seckill.common.exception.SecKillException;
+import com.jinshuai.seckill.common.util.IdUtil;
 import com.jinshuai.seckill.mq.Producer;
 import com.jinshuai.seckill.order.dao.OrderDao;
 import com.jinshuai.seckill.order.entity.Order;
@@ -217,7 +218,7 @@ public class SecKillServiceImpl implements SecKillService {
         }
         Jedis jedis = jedisContainer.get();
         Timestamp ts = new Timestamp(System.currentTimeMillis());
-        Order order = new Order(user, product, ts, UUID.randomUUID().toString());
+        Order order = new Order(user, product, ts, IdUtil.nextId());
         orderProducer.product(order);
         // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
         // TODO 剥离到事务外
@@ -297,7 +298,7 @@ public class SecKillServiceImpl implements SecKillService {
                     // 创建订单
                     DateTime dateTime = new DateTime();
                     Timestamp ts = new Timestamp(dateTime.getMillis());
-                    Order order = new Order(user, product, ts, UUID.randomUUID().toString());
+                    Order order = new Order(user, product, ts, IdUtil.nextId());
                     orderDao.createOrder(order);
                 }
             } else { // 库存不足

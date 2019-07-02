@@ -14,14 +14,14 @@ import java.sql.Timestamp;
 @Data
 public class Order {
     /**
-     * 订单ID
+     * 订单自增ID
      */
     private int id;
 
     /**
-     * 订单唯一标识
+     * 订单唯一业务标识
      */
-    private String orderUUID;
+    private long orderId;
 
     /**
      * 订单所属用户
@@ -41,10 +41,10 @@ public class Order {
     Order() {
     }
 
-    public Order(User user, Product product, Timestamp createTime, String orderUUID) {
+    public Order(User user, Product product, Timestamp createTime, long orderId) {
         this.user = user;
         this.product = product;
         this.createTime = createTime;
-        this.orderUUID = orderUUID;
+        this.orderId = orderId;
     }
 }
