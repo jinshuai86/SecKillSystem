@@ -82,3 +82,5 @@
 
 ---
 ## 4.TODO: " ROCKETMQ [TIMEOUT_CLEAN_QUEUE]broker busy "
+网上说是消息入队等待超时，解决思路是调高超时等待时间
+[参照链接](http://mail-archives.apache.org/mod_mbox/rocketmq-users/201706.mbox/%3CCANMLrBiA3_YVzYKrW+UAYGEtYmdAmK7GYO+DutEMOMJEZDdrow@mail.gmail.com%3E)
