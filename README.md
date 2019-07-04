@@ -60,6 +60,7 @@ private void limitRequestTimes(long userId) throws SecKillException {
     }
 }
 ```
+
 #### 3 查库存
 查库存可能会出现缓存穿透，如果查询到缓存中不存在的值，就会去数据库中查找。如果频繁遇到这种情况，一直访问数据库，那缓存也就没多大效果了。解决办法是如果缓存中不存在请求的key，那缓存就缓存下这个key，然后向上抛异常。
 ```Java
@@ -158,6 +159,7 @@ private void updateStock(Product product) throws SecKillException {
     }
 }
 ```
+
 #### 5 订单入队列
 对每一个订单加上唯一标识`UUID`，消费者消费时根据订单的唯一标识`UUID`查询是否已经消费了这个订单。[RocketMQ不建议用MessageID，因为MessageID可能会冲突(重复)。](https://help.aliyun.com/document_detail/44397.html?spm=a2c4g.11174283.6.651.3102449czbJGKh)
 ```Java
@@ -180,6 +182,7 @@ private void createOrder(Product product, long userId) throws SecKillException {
     jedis.sadd(SHOPPING_ITEM, itemKey);
 }
 ```
+
 #### 6 消费者消费订单，最终保存到数据库
 消费时先根据这条订单的UUID在Redis中查找，判断是否已经消费过这条订单，如果没有的话，将这个订单的UUID添加到Redis集合中。将订单持久到数据库中
 ```Java
@@ -209,6 +212,7 @@ public void consume(Order order) {
     }
 }
 ```
+
 # 部分技术实现
 ## MySQL主从复制、读写分离
 - MySQL主从复制在数据库层面实现即可
@@ -227,6 +231,7 @@ public void consume(Order order) {
 - [x] MySQL持久化数据，分别采用乐观锁、悲观锁进行并发控制并通过JMeter进行性能测试。
 - [x] 结合MySQL主从复制特性，在应用层通过AOP实现了读写分离
 - [x] 通过MyCat代理实现读写分离
+- [x] 通过snowflake生成消息唯一ID，基于Redis实现分布式锁保证集群模式下的消费幂等性
 
 ## TODO
 - [ ] 存在大量硬编码

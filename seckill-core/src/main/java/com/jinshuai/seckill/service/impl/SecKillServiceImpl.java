@@ -22,7 +22,6 @@ import redis.clients.jedis.JedisSentinelPool;
 
 import java.sql.Timestamp;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * @author: JS
@@ -178,8 +177,8 @@ public class SecKillServiceImpl implements SecKillService {
             } else {
                 cacheProductStock = String.valueOf(product.getStock());
                 jedis.set(cacheProductKey, cacheProductStock);
-                jedis.expire(cacheProductKey, expire);
             }
+            jedis.expire(cacheProductKey, expire);
         }
         // 库存不足
         if (Long.valueOf(cacheProductStock) == 0) {

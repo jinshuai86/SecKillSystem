@@ -1,6 +1,5 @@
 package com.jinshuai.seckill.cache;
 
-import com.alibaba.fastjson.JSON;
 import com.jinshuai.seckill.product.dao.ProductDao;
 import com.jinshuai.seckill.product.entity.Product;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,6 @@ public class CacheLoader {
      */
     @PostConstruct
     private void initCache() {
-
         try (Jedis jedis = jedisPool.getResource()) {
             // 清除旧的缓存
             jedis.flushDB();

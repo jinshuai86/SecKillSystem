@@ -45,7 +45,6 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
 
     @Override
     public void consume(Order order) {
-
         try (Jedis jedis = jedisSentinelPool.getResource()) {
             // 获取分布式锁
             String requestId = UUID.randomUUID().toString();
@@ -54,7 +53,7 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
             // 已经消费过此条消息
             String orderIdStr = String.valueOf(order.getOrderId());
             if (jedis.sismember("order:message:id", orderIdStr)) {
-                log.error("消息[{}]已经被消费", order);
+                log.warn("消息[{}]已经被消费", order);
                 return;
             }
             // 添加这条订单的唯一业务标识到Redis中
@@ -64,7 +63,7 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
             RedisUtil.releaseDistributedLock(jedis, LOCK_KEY, requestId);
 
             orderDao.createOrder(order);
-            log.info("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
+            log.debug("订单出队成功，当前创建订单总量 [{}]", orderNums.addAndGet(1));
         } catch (Exception e) {
             log.error("订单[{}]出队异常", order, e);
         }
