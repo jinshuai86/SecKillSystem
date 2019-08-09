@@ -16,7 +16,7 @@ public interface CommonDao {
 
     /**
      * 获取slave落后master的秒数
-     * */
+     */
     @Select("SHOW SLAVE STATUS")
     List<Map<Object, Object>> getBehindSeconds();
 

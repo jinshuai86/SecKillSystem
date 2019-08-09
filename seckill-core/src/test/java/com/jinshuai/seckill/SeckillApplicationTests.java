@@ -161,7 +161,7 @@ public class SeckillApplicationTests {
     @Test
     public void testCommonService() {
         List<Map<Object, Object>> o = commonService.getBehindSeconds();
-        o.forEach(value-> value.forEach( (k, v) -> System.out.println(k + " " + v)));
+        o.forEach(value -> value.forEach((k, v) -> System.out.println(k + " " + v)));
     }
 
     @Test

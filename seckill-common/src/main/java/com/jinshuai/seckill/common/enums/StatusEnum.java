@@ -44,7 +44,7 @@ public enum StatusEnum {
 
     /**
      * 乐观锁更新数据库失败，系统太忙
-     * */
+     */
     SYSTEM_BUSY("系统太忙", SecKillStateConstant.SYSTEM_BUSY),
     ;
 

@@ -37,3 +37,4 @@ seckill-product/target/
 seckill-account/target/
 seckill-order/target/
 seckill-common/target/
+*.log

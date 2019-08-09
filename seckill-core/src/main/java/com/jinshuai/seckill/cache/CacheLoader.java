@@ -40,7 +40,7 @@ public class CacheLoader {
             List<Product> productList = productDao.getAllProducts();
             productList.forEach(product -> {
                 pipeline.set("product:" + product.getId() + ":stock", String.valueOf(product.getStock()));
-                pipeline.expire("product:" + product.getId(), (int)(Math.random() * 120000));
+                pipeline.expire("product:" + product.getId(), (int) (Math.random() * 120000));
             });
             pipeline.sync();
             log.info("商品库存、版本号已加载到缓存中！！！");

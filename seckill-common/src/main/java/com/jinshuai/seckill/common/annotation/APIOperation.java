@@ -8,6 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * 描述每个类中每个方法，取得方法对应的描述信息。
+ *
  * @author JS
  */
 @Target({ElementType.PARAMETER, ElementType.METHOD})
@@ -15,6 +16,6 @@ import java.lang.annotation.Target;
 @Documented
 public @interface APIOperation {
 
-    String description()  default "待完善";
+    String description() default "待完善";
 
 }

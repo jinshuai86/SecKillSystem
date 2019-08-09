@@ -12,7 +12,6 @@ SecKillSystem是一个基于SpringBoot的商品秒杀模块。
 ### 整体架构
 ![architecture](./architecture.svg)
 
-
 ### 秒杀流程
 #### 1 判断用户是否重复购买  
 将用户id和产品id组合起来放到Redis集合中，当用户请求打过来时，判断Redis集合中是否存在userId + ":" + productId，**注意:一定要加分隔符，因为如果不加分隔符，1 + 23 和 12 + 3效果一样。**
@@ -32,7 +31,7 @@ private void checkRepeat(long userId, long productId) throws SecKillException {
 ```
 
 #### 2 判断用户请求次数是否已达上限  
-将用户标识作为Redis中的一个可以过期的String，每次用户请求会判断，该用户请求的次数是否已经达到上限
+通过分布式锁结合Redis实现分布式限流，这里用的基于Redis实现的分布式锁和基于Redis的计数器。 思路是：将用户标识作为Redis中的一个可以过期的String，每次用户请求会判断，该用户请求的次数是否已经达到上限
 ```Java
 /**
  * 限制用户请求频率
@@ -43,20 +42,25 @@ private void limitRequestTimes(long userId) throws SecKillException {
     Jedis jedis = jedisContainer.get();
     // 每个用户的请求标识
     String itemKey = constructCacheKey(USER_LIMIT, userId);
-    // 已经请求的次数
-    String reqTimes = jedis.get(itemKey);
-    // 第一次请求：设置初始值
-    if (reqTimes == null) {
-        jedis.set(itemKey, "1");
-        jedis.expire(itemKey, requestDuration);
-    }
-    // 限速
-    else if (Long.valueOf(reqTimes) >= requestTimes) {
-        throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
-    }
-    // 还没超过限制次数
-    else {
-        jedis.incr(itemKey);
+    String clientId = clientIdContainer.get();
+    try {
+        RedisUtil.tryGetDistributedLock(jedis, USER_LIMIT_LOCK, clientId, lockExpire);
+        // 已经请求的次数
+        String reqTimes = jedis.get(itemKey);
+        // 第一次请求：设置初始值
+        if (reqTimes == null) {
+            jedis.set(itemKey, "1");
+            jedis.expire(itemKey, requestDuration);
+        } else if (Long.parseLong(reqTimes) >= requestTimes) { // 限速
+            throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
+        } else { // 还没超过限制次数，请求次数加1
+            jedis.incr(itemKey);
+        }
+    } catch (InterruptedException e) {
+        log.error("thread is interrupted when get distributed lock", e);
+        throw new SecKillException(StatusEnum.SYSTEM_EXCEPTION);
+    } finally {
+        RedisUtil.releaseDistributedLock(jedis, USER_LIMIT_LOCK, clientId);
     }
 }
 ```
@@ -161,7 +165,7 @@ private void updateStock(Product product) throws SecKillException {
 ```
 
 #### 5 订单入队列
-对每一个订单加上唯一标识`UUID`，消费者消费时根据订单的唯一标识`UUID`查询是否已经消费了这个订单。[RocketMQ不建议用MessageID，因为MessageID可能会冲突(重复)。](https://help.aliyun.com/document_detail/44397.html?spm=a2c4g.11174283.6.651.3102449czbJGKh)
+对每一个订单加上唯一标识，消费者消费时根据订单的唯一标识，查询是否已经消费了这个订单。[RocketMQ不建议用MessageID，因为MessageID可能会冲突(重复)。](https://help.aliyun.com/document_detail/44397.html?spm=a2c4g.11174283.6.651.3102449czbJGKh)
 ```Java
 /**
  * 订单入队列
@@ -174,24 +178,37 @@ private void createOrder(Product product, long userId) throws SecKillException {
     }
     Jedis jedis = jedisContainer.get();
     Timestamp ts = new Timestamp(System.currentTimeMillis());
-    Order order = new Order(user, product, ts, UUID.randomUUID().toString());
+    Order order = new Order(user, product, ts, IdUtil.nextId());
+    // 缓存用户购买记录，避免同一用户对同一商品重复购买
+    String clientId = clientIdContainer.get();
+    try {
+        RedisUtil.tryGetDistributedLock(jedis, SHOPPING_ITEM_LOCK, clientId, lockExpire);
+        String itemKey = constructCacheKey(user.getId(), product.getId());
+        if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
+            throw new SecKillException(StatusEnum.REPEAT);
+        } else {
+            jedis.sadd(SHOPPING_ITEM, itemKey);
+        }
+    } catch (InterruptedException e) {
+        log.error("thread is interrupted when get distributed lock", e);
+        throw new SecKillException(StatusEnum.SYSTEM_EXCEPTION);
+    } finally {
+        RedisUtil.releaseDistributedLock(jedis, SHOPPING_ITEM_LOCK, clientId);
+    }
+    // TODO MQ事务消息
     orderProducer.product(order);
-    // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
-    // TODO 剥离到事务外
-    String itemKey = constructCacheKey(user.getId(), product.getId());
-    jedis.sadd(SHOPPING_ITEM, itemKey);
 }
 ```
 
 #### 6 消费者消费订单，最终保存到数据库
-消费时先根据这条订单的UUID在Redis中查找，判断是否已经消费过这条订单，如果没有的话，将这个订单的UUID添加到Redis集合中。将订单持久到数据库中
+消费时先根据这条订单的唯一标识在Redis中查找，判断是否已经消费过这条订单，如果没有的话，将这个订单的唯一标识添加到Redis集合中。将订单持久到数据库中
 ```Java
 public void consume(Order order) {
 
     try (Jedis jedis = jedisSentinelPool.getResource()) {
         // 获取分布式锁
         String requestId = UUID.randomUUID().toString();
-        RedisUtil.tryGetDistributedLock(jedis, LOCK_KEY, requestId, 500);
+        RedisUtil.tryGetDistributedLock(jedis, LOCK_KEY, requestId, lockExpire);
 
         // 已经消费过此条消息
         String orderIdStr = String.valueOf(order.getOrderId());

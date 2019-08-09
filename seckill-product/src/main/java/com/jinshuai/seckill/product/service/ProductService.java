@@ -19,7 +19,7 @@ public interface ProductService {
 
     /**
      * 获取商品库存
-     * */
+     */
     @Select("SELECT stock FROM product WHERE id = #{id}")
     long getStockById(long productId);
 

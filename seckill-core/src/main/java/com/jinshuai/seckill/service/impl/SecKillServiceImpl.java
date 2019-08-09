@@ -5,6 +5,7 @@ import com.jinshuai.seckill.account.entity.User;
 import com.jinshuai.seckill.common.enums.StatusEnum;
 import com.jinshuai.seckill.common.exception.SecKillException;
 import com.jinshuai.seckill.common.util.IdUtil;
+import com.jinshuai.seckill.common.util.RedisUtil;
 import com.jinshuai.seckill.mq.Producer;
 import com.jinshuai.seckill.order.dao.OrderDao;
 import com.jinshuai.seckill.order.entity.Order;
@@ -22,6 +23,7 @@ import redis.clients.jedis.JedisSentinelPool;
 
 import java.sql.Timestamp;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * @author: JS
@@ -47,6 +49,8 @@ public class SecKillServiceImpl implements SecKillService {
 
     private ThreadLocal<Jedis> jedisContainer = new ThreadLocal<>();
 
+    private ThreadLocal<String> clientIdContainer = new ThreadLocal<>();
+
     @Autowired
     private Producer<Order> orderProducer;
 
@@ -56,34 +60,40 @@ public class SecKillServiceImpl implements SecKillService {
     @Value("${redis.request.times}")
     private long requestTimes;
 
-    @Value("${redis.expire}")
-    private int expire;
+    @Value("${redis.product.expire}")
+    private int productExpire;
+
+    @Value("${redis.lock.expire}")
+    private int lockExpire;
 
     /**
      * 分隔符
-     * */
+     */
     private static final String DILEMMA = ":";
 
     /**
      * 购买记录集合
-     *
+     * <p>
      * 每一条购买记录会被缓存，后续判重
-     * */
+     */
     private static final String SHOPPING_ITEM = "shopping" + DILEMMA + "item";
+
+    private static final String SHOPPING_ITEM_LOCK = SHOPPING_ITEM + "lock";
 
     /**
      * 应用限流
-     * */
+     */
     private static final String USER_LIMIT = "user" + DILEMMA + "limit";
+
+    private static final String USER_LIMIT_LOCK = USER_LIMIT + "lock";
 
     /**
      * 防止缓存穿透
-     * */
+     */
     private static final String PENETRATION = "penetration";
 
     /**
      * 乐观锁: 缓存、消息队列
-     *
      */
     @Override
     public StatusEnum updateStockByOptimisticLock(Map<String, Long> parameter) throws SecKillException {
@@ -92,17 +102,18 @@ public class SecKillServiceImpl implements SecKillService {
         long userId = parameter.get("userId");
         try (Jedis jedis = jedisSentinelPool.getResource()) {
             jedisContainer.set(jedis);
+            clientIdContainer.set(UUID.randomUUID().toString());
             // 是否重复购买
             checkRepeat(userId, productId);
             // 限制请求频率
             limitRequestTimes(userId);
             /*
-            * 检查库存
-            *     - 库存充足:扣库存
-            *         - 更新成功:创建订单到队列
-            *         - 更新失败:抛出系统太忙异常，前台可以提示用户稍后再试
-            *     - 库存不足:抛出库存不足异常，返回对应JSON
-            * */
+             * 检查库存
+             *     - 库存充足:扣库存
+             *         - 更新成功:创建订单到队列
+             *         - 更新失败:抛出系统太忙异常，前台可以提示用户稍后再试
+             *     - 库存不足:抛出库存不足异常，返回对应JSON
+             * */
             checkStock(productId);
             // 扣库存
             Product product = productDao.getProductById(productId);
@@ -111,13 +122,13 @@ public class SecKillServiceImpl implements SecKillService {
             createOrder(product, userId);
         } finally {
             jedisContainer.remove();
+            clientIdContainer.remove();
         }
         return status;
     }
 
     /**
      * 是否重复购买
-     *
      */
     private void checkRepeat(long userId, long productId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
@@ -131,32 +142,35 @@ public class SecKillServiceImpl implements SecKillService {
     /**
      * 限制用户请求频率
      * 指定时间(requestDuration)内请求次数不能超过requestTimes次
-     *
      */
     private void limitRequestTimes(long userId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
         // 每个用户的请求标识
         String itemKey = constructCacheKey(USER_LIMIT, userId);
-        // 已经请求的次数
-        String reqTimes = jedis.get(itemKey);
-        // 第一次请求：设置初始值
-        if (reqTimes == null) {
-            jedis.set(itemKey, "1");
-            jedis.expire(itemKey, requestDuration);
-        }
-        // 限速
-        else if (Long.valueOf(reqTimes) >= requestTimes) {
-            throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
-        }
-        // 还没超过限制次数
-        else {
-            jedis.incr(itemKey);
+        String clientId = clientIdContainer.get();
+        try {
+            RedisUtil.tryGetDistributedLock(jedis, USER_LIMIT_LOCK, clientId, lockExpire);
+            // 已经请求的次数
+            String reqTimes = jedis.get(itemKey);
+            // 第一次请求：设置初始值
+            if (reqTimes == null) {
+                jedis.set(itemKey, "1");
+                jedis.expire(itemKey, requestDuration);
+            } else if (Long.parseLong(reqTimes) >= requestTimes) { // 限速
+                throw new SecKillException(StatusEnum.FREQUENCY_REQUEST);
+            } else { // 还没超过限制次数，请求次数加1
+                jedis.incr(itemKey);
+            }
+        } catch (InterruptedException e) {
+            log.error("thread is interrupted when get distributed lock", e);
+            throw new SecKillException(StatusEnum.SYSTEM_EXCEPTION);
+        } finally {
+            RedisUtil.releaseDistributedLock(jedis, USER_LIMIT_LOCK, clientId);
         }
     }
 
     /**
      * 检查缓存库存、处理缓存穿透
-     *
      */
     private void checkStock(long productId) throws SecKillException {
         Jedis jedis = jedisContainer.get();
@@ -178,17 +192,16 @@ public class SecKillServiceImpl implements SecKillService {
                 cacheProductStock = String.valueOf(product.getStock());
                 jedis.set(cacheProductKey, cacheProductStock);
             }
-            jedis.expire(cacheProductKey, expire);
+            jedis.expire(cacheProductKey, productExpire);
         }
         // 库存不足
-        if (Long.valueOf(cacheProductStock) == 0) {
+        if (Long.parseLong(cacheProductStock) == 0) {
             throw new SecKillException(StatusEnum.LOW_STOCKS);
         }
     }
 
     /**
      * 扣库存、删除缓存
-     *
      */
     private void updateStock(Product product) throws SecKillException {
         Jedis jedis = jedisContainer.get();
@@ -208,7 +221,6 @@ public class SecKillServiceImpl implements SecKillService {
 
     /**
      * 订单入队列
-     *
      */
     private void createOrder(Product product, long userId) throws SecKillException {
         User user = userDao.getUserById(userId);
@@ -218,17 +230,30 @@ public class SecKillServiceImpl implements SecKillService {
         Jedis jedis = jedisContainer.get();
         Timestamp ts = new Timestamp(System.currentTimeMillis());
         Order order = new Order(user, product, ts, IdUtil.nextId());
+        // 缓存用户购买记录，避免同一用户对同一商品重复购买
+        String clientId = clientIdContainer.get();
+        try {
+            RedisUtil.tryGetDistributedLock(jedis, SHOPPING_ITEM_LOCK, clientId, lockExpire);
+            String itemKey = constructCacheKey(user.getId(), product.getId());
+            if (jedis.sismember(SHOPPING_ITEM, itemKey)) {
+                throw new SecKillException(StatusEnum.REPEAT);
+            } else {
+                jedis.sadd(SHOPPING_ITEM, itemKey);
+            }
+        } catch (InterruptedException e) {
+            log.error("thread is interrupted when get distributed lock", e);
+            throw new SecKillException(StatusEnum.SYSTEM_EXCEPTION);
+        } finally {
+            RedisUtil.releaseDistributedLock(jedis, SHOPPING_ITEM_LOCK, clientId);
+        }
+        // TODO MQ事务消息
         orderProducer.product(order);
-        // 缓存购买记录，防止重复购买, 以下代码如果抛异常就会出现超卖，如果抛出异常后就会回滚扣库存的SQL，但是订单消息已经放到队列
-        // TODO 剥离到事务外
-        String itemKey = constructCacheKey(user.getId(), product.getId());
-        jedis.sadd(SHOPPING_ITEM, itemKey);
     }
 
     /**
      * 构造缓存Key
-     * */
-    private String constructCacheKey(Object ...args) {
+     */
+    private String constructCacheKey(Object... args) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < args.length; i++) {
             sb.append(args[i]);
@@ -240,7 +265,6 @@ public class SecKillServiceImpl implements SecKillService {
 
     /**
      * 乐观锁：未加缓存
-     *
      */
     public StatusEnum _updateStockByOptimisticLock(Map<String, Integer> parameter) {
         StatusEnum status = StatusEnum.SUCCESS;

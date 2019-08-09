@@ -11,20 +11,22 @@ import org.springframework.stereotype.Component;
 
 /**
  * 定义切面类，将自定义注解作为切点，获取操作信息。
- * @date 2019/6/19
+ *
  * @author JS
- * */
+ * @date 2019/6/19
+ */
 @Aspect
 @Component
 @Slf4j
 public class SystemLog {
 
     @Pointcut("@annotation(com.jinshuai.seckill.common.annotation.APIOperation)")
-    public void MethodAspect() {}
+    public void MethodAspect() {
+    }
 
     @After("MethodAspect()")
     public void doAfter(JoinPoint joinPoint) {
-        MethodSignature method = (MethodSignature)joinPoint.getSignature();
+        MethodSignature method = (MethodSignature) joinPoint.getSignature();
         APIOperation apiOperation = method.getMethod().getAnnotation(APIOperation.class);
         if (apiOperation != null) {
             log.info("请求方法:"

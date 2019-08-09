@@ -11,7 +11,7 @@ import java.util.Map;
 public interface CommonService {
     /**
      * 获取slave复制状态
-     * */
+     */
     List<Map<Object, Object>> getBehindSeconds();
 
 }

@@ -2,9 +2,11 @@ package com.jinshuai.seckill.account.controller;
 
 import com.jinshuai.seckill.account.entity.User;
 import com.jinshuai.seckill.account.service.UserService;
+import org.apache.rocketmq.client.impl.consumer.ProcessQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.channels.FileChannel;
 import java.util.List;
 
 /**

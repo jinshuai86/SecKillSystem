@@ -21,7 +21,7 @@ public interface OrderDao {
 
     /**
      * 查询订单
-     * */
+     */
     @Select("SELECT * FROM `order` where id = #{order.id}")
     Order getOrderById(long orderId);
 

@@ -10,6 +10,7 @@ import org.apache.rocketmq.spring.annotation.MessageModel;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisSentinelPool;
@@ -33,6 +34,9 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
     @Autowired
     private JedisSentinelPool jedisSentinelPool;
 
+    @Value("${redis.lock.expire}")
+    private int lockExpire;
+
     private AtomicInteger orderNums = new AtomicInteger(0);
 
     private static final String LOCK_KEY = "ORDER_MESSAGE_LOCK";
@@ -48,7 +52,7 @@ public class OrderConsumer implements RocketMQListener<String>, Consumer<Order> 
         try (Jedis jedis = jedisSentinelPool.getResource()) {
             // 获取分布式锁
             String requestId = UUID.randomUUID().toString();
-            RedisUtil.tryGetDistributedLock(jedis, LOCK_KEY, requestId, 500);
+            RedisUtil.tryGetDistributedLock(jedis, LOCK_KEY, requestId, lockExpire);
 
             // 已经消费过此条消息
             String orderIdStr = String.valueOf(order.getOrderId());

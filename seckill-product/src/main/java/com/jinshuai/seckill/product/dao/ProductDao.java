@@ -23,7 +23,7 @@ public interface ProductDao {
 
     /**
      * 获取商品库存
-     * */
+     */
     @Select("SELECT stock FROM product WHERE id = #{id}")
     Long getStockById(long productId);
 
