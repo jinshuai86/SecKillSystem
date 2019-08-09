@@ -1,6 +1,6 @@
 # SecKillSystem
 
-> 由于学校网络中心出问题了，第一个项目原来的域名暂时访问不了，然后自己新开了一个URL：[https://jinshuai86.github.io/EtrizDoc](https://jinshuai86.github.io/EtrizDoc)
+> 由于学校网络中心出问题了，第一个项目原来的域名暂时访问不了，然后新开了一个URL：[https://jinshuai86.github.io/EtrizDoc](https://jinshuai86.github.io/EtrizDoc)
 
 SecKillSystem是一个基于SpringBoot的商品秒杀模块。
 
