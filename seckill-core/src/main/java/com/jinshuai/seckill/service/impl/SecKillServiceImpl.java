@@ -92,11 +92,13 @@ public class SecKillServiceImpl implements SecKillService {
      */
     private static final String PENETRATION = "penetration";
 
+    private static final String FILL_CACHE_LOCK = "fill" + DILEMMA + "cache" + DILEMMA + "lock";
+
     /**
      * 乐观锁: 缓存、消息队列
      */
     @Override
-    public StatusEnum updateStockByOptimisticLock(Map<String, Long> parameter) throws SecKillException {
+    public StatusEnum updateStockByOptimisticLock(Map<String, Long> parameter) throws SecKillException, InterruptedException {
         StatusEnum status = StatusEnum.SUCCESS;
         long productId = parameter.get("productId");
         long userId = parameter.get("userId");
@@ -143,7 +145,7 @@ public class SecKillServiceImpl implements SecKillService {
      * 限制用户请求频率
      * 指定时间(requestDuration)内请求次数不能超过requestTimes次
      */
-    private void limitRequestTimes(long userId) throws SecKillException {
+    private void limitRequestTimes(long userId) throws SecKillException, InterruptedException {
         Jedis jedis = jedisContainer.get();
         // 每个用户的请求标识
         String itemKey = constructCacheKey(USER_LIMIT, userId);
@@ -161,9 +163,6 @@ public class SecKillServiceImpl implements SecKillService {
             } else { // 还没超过限制次数，请求次数加1
                 jedis.incr(itemKey);
             }
-        } catch (InterruptedException e) {
-            log.error("thread is interrupted when get distributed lock", e);
-            throw new SecKillException(StatusEnum.SYSTEM_EXCEPTION);
         } finally {
             RedisUtil.releaseDistributedLock(jedis, USER_LIMIT_LOCK, clientId);
         }
@@ -172,7 +171,7 @@ public class SecKillServiceImpl implements SecKillService {
     /**
      * 检查缓存库存、处理缓存穿透
      */
-    private void checkStock(long productId) throws SecKillException {
+    private void checkStock(long productId) throws SecKillException, InterruptedException {
         Jedis jedis = jedisContainer.get();
         String cacheProductKey = constructCacheKey("product", productId, "stock");
         String cacheProductStock = jedis.get(cacheProductKey);
@@ -182,17 +181,23 @@ public class SecKillServiceImpl implements SecKillService {
         }
         // 缓存未命中
         if (cacheProductStock == null) {
-            Product product = productDao.getProductById(productId);
-            // 数据库不存在此商品
-            if (product == null) {
-                // 通过缓存没意义的数据防止缓存穿透
-                jedis.set(cacheProductKey, PENETRATION);
-                throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
-            } else {
-                cacheProductStock = String.valueOf(product.getStock());
-                jedis.set(cacheProductKey, cacheProductStock);
+            String clientId = clientIdContainer.get();
+            try {
+                RedisUtil.tryGetDistributedLock(jedis, FILL_CACHE_LOCK, clientId, lockExpire);
+                Product product = productDao.getProductById(productId);
+                // 数据库不存在此商品
+                if (product == null) {
+                    // 通过缓存没意义的数据防止缓存穿透
+                    jedis.set(cacheProductKey, PENETRATION);
+                    throw new SecKillException(StatusEnum.INCOMPLETE_ARGUMENTS);
+                } else {
+                    cacheProductStock = String.valueOf(product.getStock());
+                    jedis.set(cacheProductKey, cacheProductStock);
+                }
+                jedis.expire(cacheProductKey, productExpire);
+            } finally {
+                RedisUtil.releaseDistributedLock(jedis, FILL_CACHE_LOCK, clientId);
             }
-            jedis.expire(cacheProductKey, productExpire);
         }
         // 库存不足
         if (Long.parseLong(cacheProductStock) == 0) {
